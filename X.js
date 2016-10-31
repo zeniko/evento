@@ -7,14 +7,14 @@ Diese Datei muss momentan von Hand geladen werden, indem die
 folgende Zeile in die Adressleiste des Browsers kopiert und
 dort mit Enter ausgeführt wird (während Evento bereits läuft):
 
-javascript:void(document.body.appendChild(document.createElement("script")).src="https://raw.githubusercontent.com/zeniko/evento/master/X.js")
+javascript:void(document.body.appendChild(document.createElement("script")).src="https://rawgit.com/zeniko/evento/master/X.js")
 
 */
 
 if (!window.jQuery)
 {
 	// jQuery über https nachladen, sofern noch nicht geschehen
-	document.body.appendChild(document.createElement("script")).src = "https://raw.githubusercontent.com/zeniko/evento/master/jquery.min.js";
+	document.body.appendChild(document.createElement("script")).src = "https://rawgit.com/zeniko/evento/master/jquery.min.js";
 }
 
 if (window.X && window.X.uninit)
@@ -26,7 +26,7 @@ if (window.X && window.X.uninit)
 // Namespace für sämtliche zusätzliche Funktionalität
 var X = {
 	// Version des Scripts:
-	version: "0.5.0b1", // Stand 31.10.16
+	version: "0.5.0b2", // Stand 31.10.16
 
 	// das im Hauptframe geladene Dokument (wird asynchron aktualisiert)
 	doc: null,
@@ -517,10 +517,10 @@ var X = {
 		
 		// sammle minimale statistische Daten (Kursname und interfaceVersion)
 		// zur Beurteilung der Effektivität dieses Helfers
-		if (!X._debugging)
+		/* if (!X._debugging)
 		{
 			$.get("http://www.zeniko.ch/evento/statistics.js?kursname=" + encodeURIComponent(X._kursname) + "&iv=" + X.interfaceVersion + "," + aView + "&xv=" + X.version + "&ua=" + encodeURIComponent(navigator.userAgent) + "&now=" + (new Date()).valueOf());
-		}
+		} */
 	},
 
 	/**
