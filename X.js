@@ -26,7 +26,7 @@ if (window.X && window.X.uninit)
 // Namespace für sämtliche zusätzliche Funktionalität
 var X = {
 	// Version des Scripts:
-	version: "0.5.0b2", // Stand 31.10.16
+	version: "0.5.0b3", // Stand 02.11.16
 
 	// das im Hauptframe geladene Dokument (wird asynchron aktualisiert)
 	doc: null,
@@ -388,14 +388,14 @@ var X = {
 						{
 							error = [RegExp.$1, name];
 						}
+						else if (typeof(absences[name][0]) != "number" || typeof(absences[name][1]) != "number")
+						{
+							error = ["invalid-value", "" + absences[name]];
+						}
 						else
 						{
 							$(this).parent().find(":text:eq(0)").val(absences[name][0]);
 							$(this).parent().find(":text:eq(1)").val(absences[name][1]);
-							if (typeof(absences[name][0]) != "number" || typeof(absences[name][1]) != "number")
-							{
-								error = ["no-number", absences[name]];
-							}
 						}
 					}
 					else
@@ -483,6 +483,10 @@ var X = {
 					{
 						error = [RegExp.$1, name];
 					}
+					else if (typeof(absences[name][0]) != "number" || typeof(absences[name][1]) != "number")
+					{
+						error = ["invalid-value", "" + absences[name]];
+					}
 					else
 					{
 						$(this).parent().find("td > input[type=text]").eq(-2).val(absences[name][0]);
@@ -491,11 +495,6 @@ var X = {
 						$(this).parent().find("td > input[type=text]").eq(-1).val(absences[name][1]);
 						// Auto-Speicherung durch Simulation einer Eingabe auslösen
 						$(this).parent().find("td > input[type=text]").eq(-1).trigger("keyup").trigger("input").trigger("blur");
-						
-						if (typeof(absences[name][0]) != "number" || typeof(absences[name][1]) != "number")
-						{
-							error = ["no-number", absences[name]];
-						}
 					}
 				}
 				else
