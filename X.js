@@ -26,7 +26,7 @@ if (window.X && window.X.uninit)
 // Namespace für sämtliche zusätzliche Funktionalität
 var X = {
 	// Version des Scripts:
-	version: "0.5.0b3", // Stand 02.11.16
+	version: "0.5.0b4", // Stand 03.11.16
 
 	// das im Hauptframe geladene Dokument (wird asynchron aktualisiert)
 	doc: null,
@@ -436,6 +436,12 @@ var X = {
 					}
 					else
 					{
+						if (validGrades && $.inArray(validGrades, grades[name]))
+						{
+							// bei Zehntelsnoten mÃ¼ssen ganze Werte auf ".0" enden
+							grades[name] = $.grep(validGrades, function(aVal) { return aVal == grades[name]; })[0];
+						}
+						
 						input.val(grades[name]);
 						// Auto-Speicherung durch Simulation einer Eingabe auslösen
 						input.trigger("keyup").trigger("input").trigger("blur");
@@ -845,6 +851,10 @@ var X = {
 		if (/^[1-6](?:\.\d+)?$/.test(aString)) // Dezimalbruch
 		{
 			return parseFloat(aString);
+		}
+		if (/[1-6],\d+$/.test(aString)) // Dezimalbruch mit Komma
+		{
+			return parseFloat(aString.replace(",", "."));
 		}
 		if (/^([1-6]) (\d+)\/(\d+)$/.test(aString) && RegExp.$2 != 0 && RegExp.$3 - RegExp.$2 > 0) // gemeiner Bruch
 		{
