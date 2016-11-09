@@ -26,7 +26,7 @@ if (window.X && window.X.uninit)
 // Namespace für sämtliche zusätzliche Funktionalität
 var X = {
 	// Version des Scripts:
-	version: "0.5.0b4", // Stand 03.11.16
+	version: "0.5.0", // Stand 09.11.16
 
 	// das im Hauptframe geladene Dokument (wird asynchron aktualisiert)
 	doc: null,
@@ -519,13 +519,6 @@ var X = {
 			});
 			break;
 		}
-		
-		// sammle minimale statistische Daten (Kursname und interfaceVersion)
-		// zur Beurteilung der Effektivität dieses Helfers
-		/* if (!X._debugging)
-		{
-			$.get("http://www.zeniko.ch/evento/statistics.js?kursname=" + encodeURIComponent(X._kursname) + "&iv=" + X.interfaceVersion + "," + aView + "&xv=" + X.version + "&ua=" + encodeURIComponent(navigator.userAgent) + "&now=" + (new Date()).valueOf());
-		} */
 	},
 
 	/**
@@ -1046,10 +1039,5 @@ var X = {
 		return errors;
 	}
 };
-
-if (/^file:|https?:\/\/localhost\//.test(location))
-{
-	X._debugging = true;
-}
 
 X.init();
