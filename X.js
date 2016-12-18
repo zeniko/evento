@@ -26,7 +26,7 @@ if (window.X && window.X.uninit)
 // Namespace für sämtliche zusätzliche Funktionalität
 var X = {
 	// Version des Scripts:
-	version: "0.5.0", // Stand 09.11.16
+	version: "0.5.1", // Stand 18.12.16
 
 	// das im Hauptframe geladene Dokument (wird asynchron aktualisiert)
 	doc: null,
@@ -438,13 +438,16 @@ var X = {
 					{
 						if (validGrades && $.inArray(validGrades, grades[name]))
 						{
-							// bei Zehntelsnoten mÃ¼ssen ganze Werte auf ".0" enden
+							// bei Zehntelsnoten müssen ganze Werte auf ".0" enden
 							grades[name] = $.grep(validGrades, function(aVal) { return aVal == grades[name]; })[0];
 						}
-						
-						input.val(grades[name]);
-						// Auto-Speicherung durch Simulation einer Eingabe auslösen
-						input.trigger("keyup").trigger("input").trigger("blur");
+						// die Eingabe Server-schonend nur bei Änderung vornehmen
+						if (input.val() != grades[name])
+						{
+							input.val(grades[name]);
+							// Auto-Speicherung durch Simulation einer Eingabe auslösen
+							input.trigger("keyup").trigger("input").trigger("blur");
+						}
 						
 						if (validGrades && !$.inArray(validGrades, grades[name]))
 						{
@@ -495,12 +498,17 @@ var X = {
 					}
 					else
 					{
-						$(this).parent().find("td > input[type=text]").eq(-2).val(absences[name][0]);
-						// Auto-Speicherung durch Simulation einer Eingabe auslösen
-						$(this).parent().find("td > input[type=text]").eq(-2).trigger("keyup").trigger("input").trigger("blur");
-						$(this).parent().find("td > input[type=text]").eq(-1).val(absences[name][1]);
-						// Auto-Speicherung durch Simulation einer Eingabe auslösen
-						$(this).parent().find("td > input[type=text]").eq(-1).trigger("keyup").trigger("input").trigger("blur");
+						for (var i = 0; i < 2; i++)
+						{
+							var el = $(this).parent().find("td > input[type=text]").eq(-2 + i);
+							// die Eingabe Server-schonend nur bei Änderung vornehmen
+							if ((el.val() || 0) != absences[name][i])
+							{
+								el.val(absences[name][i]);
+								// Auto-Speicherung durch Simulation einer Eingabe auslösen
+								el.trigger("keyup").trigger("input").trigger("blur");
+							}
+						}
 					}
 				}
 				else
