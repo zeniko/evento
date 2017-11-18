@@ -1,4 +1,4 @@
-﻿/* Evento Excel-Helfer  (C) 2009 - 2016 Simon Bünzli  <zeniko@gmail.com>
+﻿/* Evento Excel-Helfer  (C) 2009 - 2017 Simon Bünzli  <simon.buenzli@zeniko.ch>
 
 Gebrauchsanweisung
 ------------------
@@ -7,14 +7,14 @@ Diese Datei muss momentan von Hand geladen werden, indem die
 folgende Zeile in die Adressleiste des Browsers kopiert und
 dort mit Enter ausgeführt wird (während Evento bereits läuft):
 
-javascript:void(document.body.appendChild(document.createElement("script")).src="https://rawgit.com/zeniko/evento/master/X.js")
+javascript:void(document.body.appendChild(document.createElement("script")).src="https://www.zeniko.ch/evento/X.js")
 
 */
 
 if (!window.jQuery)
 {
 	// jQuery über https nachladen, sofern noch nicht geschehen
-	document.body.appendChild(document.createElement("script")).src = "https://rawgit.com/zeniko/evento/master/jquery.min.js";
+	document.body.appendChild(document.createElement("script")).src = "https://www.zeniko.ch/evento/jquery.min.js";
 }
 
 if (window.X && window.X.uninit)
@@ -26,7 +26,7 @@ if (window.X && window.X.uninit)
 // Namespace für sämtliche zusätzliche Funktionalität
 var X = {
 	// Version des Scripts:
-	version: "0.5.1", // Stand 18.12.16
+	version: "0.5.2", // Stand 18.11.17
 
 	// das im Hauptframe geladene Dokument (wird asynchron aktualisiert)
 	doc: null,
@@ -248,7 +248,7 @@ var X = {
 	<textarea id="tsv-data" rows="20"></textarea>\
 	\
 	<div style="float: left;"><input type="button" value=" ' + strings.accept_button + ' " onclick="top.X.acceptOverlay(' + view + ');"> <input type="button" value=" ' + strings.cancel_button + ' " onclick="top.X.cancelOverlay();"></div>\
-	<div style="float: right;">' + strings.feedback_to.replace("%s", '<a href="mailto:zeniko@gmail.com?subject=Evento:%20Excel-Eingabe%20Feedback">Simon B&uuml;nzli</a>') + '</div>\
+	<div style="float: right;">' + strings.feedback_to.replace("%s", '<a href="mailto:simon.buenzli@zeniko.ch?subject=Evento:%20Excel-Eingabe%20Feedback">Simon B&uuml;nzli</a>') + '</div>\
 </div></div></div>\
 		');
 		
@@ -674,17 +674,16 @@ var X = {
 	parseDataHelper: function(aData, aKnownNames, aValidator)
 	{
 		var lessFancy = {};
+		var knownUnfancy = [];
 		$.each(aKnownNames, function() {
 			var name = X.unfancyName(this);
 			lessFancy[name] = name in lessFancy ? null : this;
+			knownUnfancy.push(name);
 		});
-		
-		// ein oder zwei Vornamen und ein (oder mehrere) Nachnamen
-		var multiPartName = /^(\S+(?: \S+)?) (\S+(?: \S+)*)$/;
 		
 		// zuerst muss das Muster bestimmt werden, in welchem Namen und Werte auftreten;
 		// das meist-verwendete Namensschema und die letzte Spalte mit Zahlen werden verwendet
-		var stats = { normal: 0, split: 0, revd: 0, revd2: 0, gradeRow: 1 };
+		var stats = { normal: 0, split: 0, split_rev: 0, rotate: 0, gradeRow: 1 };
 		for (var i = 0; i < aData.length; i++)
 		{
 			// ignoriere Leerzeilen und Kommentarzeilen
@@ -697,10 +696,17 @@ var X = {
 			// Bugfix: split mit RegExp funktioniert im MSIE nicht zuverlässig
 			aData[i] = $.map(aData[i].split("\t"), $.trim);
 			
-			stats.normal += X.unfancyName(aData[i][0]) in lessFancy ? 1 : 0;
-			stats.split += X.unfancyName(aData[i].slice(0, 2).join(" ")) in lessFancy ? 1 : 0;
-			stats.revd += X.unfancyName(aData[i].slice(0, 2).reverse().join(" ")) in lessFancy ? 1 : 0;
-			stats.revd2 += X.unfancyName(aData[i][0].replace(multiPartName, "$2 $1")) in lessFancy ? 1 : 0;
+			stats.normal += X.resolveName(X.unfancyName(aData[i][0]), knownUnfancy) in lessFancy ? 1 : 0;
+			stats.split += X.resolveName(X.unfancyName(aData[i].slice(0, 2).join(" ")), knownUnfancy) in lessFancy ? 1 : 0;
+			stats.split_rev += X.resolveName(X.unfancyName(aData[i].slice(0, 2).reverse().join(" ")), knownUnfancy) in lessFancy ? 1 : 0;
+			
+			$.each(X.rotateName(X.unfancyName(aData[i][0])), function() {
+				if (X.resolveName(this, knownUnfancy) in lessFancy)
+				{
+					stats.rotate++;
+					return false;
+				}
+			});
 			
 			$.each(aData[i], function(aRow) {
 				if (aRow > stats.gradeRow && (aValidator ? aValidator(this) : this))
@@ -725,23 +731,29 @@ var X = {
 				continue;
 			}
 			aData[i] = aData[i].concat(padding).slice(0, stats.gradeRow + 1);
-			if (stats.split > stats.normal && stats.split > stats.revd && stats.split > stats.revd2)
+			if (stats.split > Math.max(stats.normal, stats.split_rev, stats.rotate))
 			{
 				var name = aData[i].splice(0, 2).join(" ");
 			}
-			else if (stats.revd > stats.normal && stats.revd > stats.split && stats.revd > stats.revd2)
+			else if (stats.split_rev > Math.max(stats.normal, stats.split, stats.rotate))
 			{
 				name = aData[i].splice(0, 2).reverse().join(" ");
 			}
-			else if (stats.revd2 > stats.normal && stats.revd2 > stats.split && stats.revd2 > stats.revd)
+			else if (stats.rotate > Math.max(stats.normal, stats.split, stats.split_rev))
 			{
-				name = aData[i].splice(0, 1)[0].replace(multiPartName, "$2 $1");
+				$.each(X.rotateName(X.unfancyName(aData[i].splice(0, 1)[0])), function() {
+					name = this;
+					if (X.resolveName(this, knownUnfancy) in lessFancy)
+					{
+						return false;
+					}
+				});
 			}
 			else
 			{
 				name = aData[i].splice(0, 1)[0];
 			}
-			name = lessFancy[X.unfancyName(name)] || name;
+			name = lessFancy[X.resolveName(X.unfancyName(name), knownUnfancy)] || name;
 			
 			parsedLines.push([name].concat(aData[i]));
 		}
@@ -888,7 +900,84 @@ var X = {
 			aName = aName.replace(new RegExp("[" + fancy + "]", "g"), lessFancy[fancy]);
 		}
 		
-		return aName.toLowerCase().replace(/\s+/g, " ");
+		return $.trim(aName.toLowerCase().replace(/\s+/g, " "));
+	},
+
+	/**
+	 * @param aName  ein Name
+	 * @returns eine Liste mit dem Namen derart umgestellt, dass der erste
+	 *          Nachname an zweiter, dritter, etc. Stelle steht
+	 */
+	rotateName: function(aName) {
+		var variants = [];
+		
+		var parts = aName.split(" ");
+		for (var i = 1; i < parts.length; i++)
+		{
+			variants.push(parts.slice(i).concat(parts.slice(0, i)).join(" "));
+		}
+		
+		return variants;
+	},
+
+	/**
+	 * Sucht den Namen aName in aKnownNames, wobei aName nicht sämtliche
+	 * Namensteile enthalten muss (aber mindestens den ersten Nachnamen).
+	 * 
+	 * @param aName  ein Name, beginnend mit dem ersten Nachnamen
+	 * @param aKnownNames  eine Liste von dem System bekannten Namen
+	 * @returns den Namen, wie er in aKnownNames auftritt, oder |null|
+	 */
+	resolveName: function(aName, aKnownNames)
+	{
+		var found = null;
+		
+		var nameParts = aName.split(" ");
+		for (var i = 0; i < aKnownNames.length; i++)
+		{
+			if (X.matchNameParts(nameParts, aKnownNames[i].split(" ")))
+			{
+				if (!found)
+				{
+					found = aKnownNames[i];
+				}
+				else
+				{
+					// Name ist nicht eindeutig zuweisbar
+					return null;
+				}
+			}
+		}
+		
+		return found;
+	},
+
+	/**
+	 * Prüft, ob sämtliche Teile von aParts in der exakten Reihenfolge auch
+	 * in aFull auftreten. Der erste Teil muss übereinstimmen (1. Nachname)
+	 * und mindestens zwei Namensteile müssen vorkommen.
+	 * 
+	 * @param aParts  eine Liste von (Namens)teilen
+	 * @param aFull  eine Liste von (Namens)teilen
+	 * @returns ob sämtliche Teile von aParts in aFull auftreten
+	 */
+	matchNameParts: function(aParts, aFull)
+	{
+		if (aParts.length < Math.min(2, aFull.length) || aParts[0] != aFull[0])
+		{
+			return false;
+		}
+		
+		var ix = 0;
+		
+		$.each(aFull, function() {
+			if (this == aParts[ix])
+			{
+				ix++;
+			}
+		});
+		
+		return ix == aParts.length;
 	},
 
 	/**
@@ -928,7 +1017,7 @@ var X = {
 				"Name	Unbekannt	2.5", // unbekannter Name
 				"Nàlizätión	Iñtërnâtiô	6",
 				"Cognome	Nome", // fehlende Note
-				"Apellido Nombre		5.5", // Leerschlag statt Tabulator
+				"Apellido Nombre	5.5", // Leerschlag statt Tabulator
 				"Sportler	Profi	disp",
 				"Tester	Beta	Besucht" // Gross-/Kleinschreibung des Prädikats
 			],
@@ -945,7 +1034,7 @@ var X = {
 			],
 			[ // Muster: Vorname<Tab>Nachname<Tab>beliebig<Tab>Note auf zwei Dezimalstellen
 				"Vorname	Name	/!\	1.00",
-				"Given Name	Family Name	/!\	2.20",
+				"Given	Family	/!\	2.20", // jeweils nur der erste Namensteil
 				"Prenom	Nom	/!\	3.50",
 				"Internatio	Nalizaetion	#	6.00",
 				"Nome	Cognome		4 .5", // ungültige Note
@@ -961,7 +1050,7 @@ var X = {
 				"NOMBRE APELLIDO	4", // zweimal der-
 				"nómbré ápéllídó	5", // selbe Name
 				"PROFI SPORTLER	disp",
-				"Beta Tester	xbesucht" // Tippfehler im Prädikats
+				"Beta Tester	xbesucht" // Tippfehler im Prädikat
 			]
 		];
 		var absenceTests = [
@@ -1019,7 +1108,7 @@ var X = {
 					count--;
 				}
 			}
-			assert(count == 0, "Test " + (i + 1) + ": Differenz von " + -count + " zur Anzahl erwarteter Ergebnisse");
+			assert(count >= 0, "Test " + (i + 1) + ": Differenz von " + -count + " zur Anzahl erwarteter Ergebnisse");
 		});
 		
 		$.each(absenceTests, function(i) {
@@ -1027,21 +1116,21 @@ var X = {
 			var count = 0;
 			for (var name in absenceOutput)
 			{
-				assert(name in result, "Test " + (i + 1) + ": '" + name + "' nicht gefunden");
+				assert(name in result, "Absenzen-Test " + (i + 1) + ": '" + name + "' nicht gefunden");
 				if (name in result)
 				{
-					assert(result[name][0] === absenceOutput[name] && result[name][1] === absenceOutput[name], "Test " + (i + 1) + " für '" + name + "': " + [result[name], result[name]] + " != " + absenceOutput[name]);
+					assert(result[name][0] === absenceOutput[name] && result[name][1] === absenceOutput[name], "Absenzen-Test " + (i + 1) + " für '" + name + "': " + [result[name], result[name]] + " != " + absenceOutput[name]);
 				}
 				count++;
 			}
 			for (name in result)
 			{
-				if ($.inArray(name, knownNames) > -1 && typeof(result[name]) != "string")
+				if ($.inArray(name, knownNames) > -1 && typeof(result[name]) != "string" && result[name][0] === result[name][1])
 				{
 					count--;
 				}
 			}
-			assert(count == 0, "Test " + (i + 1) + ": Differenz von " + -count + " zur Anzahl erwarteter Ergebnisse");
+			assert(count >= 0, "Absenzen-Test " + (i + 1) + ": Differenz von " + -count + " zur Anzahl erwarteter Ergebnisse");
 		});
 		
 		return errors;
