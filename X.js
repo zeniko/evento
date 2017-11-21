@@ -26,21 +26,32 @@ if (window.X && window.X.uninit)
 // Namespace für sämtliche zusätzliche Funktionalität
 var X = {
 	// Version des Scripts:
-	version: "0.5.2", // Stand 18.11.17
+	version: "0.5.3", // Stand 21.11.17
 
 	// das im Hauptframe geladene Dokument (wird asynchron aktualisiert)
 	doc: null,
+
 	// Version 1: altes Webinterface (mit Frames)
 	// Version 1.5: gemischtes Webinterface (mit iFrame, nur für IE)
 	// Version 2: aktuelles Webinterface (ohne Frames)
 	interfaceVersion: 0,
+
+	// Wenn X.js eingebettet ist, werden die Buttons nicht eingefügt 
+	// und das Overlay erscheint am Anfang nicht
+	// das Callback wird am Ende von onFrameLoad aufgerufen
+	// (siehe EVT CR-11450)
+	embedded: window.X_IS_EMBEDDED || false,
+	embeddedCallback: window.X_EMBEDDED_CALLBACK || function() { },
+
 	// im Interface verwendete Sprache (muss in X.strings vorhanden sein)
 	lang: "de",
+
 	// im Interface sichtbare Texte
+	// Text von start_button wurde angepasst für EVT CR-11450
 	strings: {
 		de: {
 			views: [{
-				start_button: "Excel-Eingabe öffnen",
+				start_button: "Excel-Eingabe für Noten",
 				accept_button: "Noten übernehmen",
 				cancel_button: "Abbrechen",
 				feedback_to: "Feedback an %s", // %s wird durch eine E-Mail-Adresse ersetzt
@@ -54,7 +65,7 @@ var X = {
 					""
 				]
 			}, {
-				start_button: "Excel-Eingabe (Absenzen) öffnen",
+				start_button: "Excel-Eingabe für Absenzen",
 				accept_button: "Absenzen übernehmen",
 				cancel_button: "Abbrechen",
 				feedback_to: "Feedback an %s", // %s wird durch eine E-Mail-Adresse ersetzt
@@ -78,7 +89,7 @@ var X = {
 		},
 		fr: {
 			views: [{
-				start_button: "Ouvrir le masque de saisie Excel",
+				start_button: "Saisie Excel pour les notes",
 				accept_button: "Valider les notes",
 				cancel_button: "Annuler",
 				feedback_to: "Envoyer un feedback à %s", // %s wird durch eine E-Mail-Adresse ersetzt
@@ -92,7 +103,7 @@ var X = {
 					""
 				]
 			}, {
-				start_button: "Ouvrir le masque de saisie Excel (absences)",
+				start_button: "Saisie Excel pour les absences",
 				accept_button: "Valider les absences",
 				cancel_button: "Annuler",
 				feedback_to: "Envoyer un feedback à %s", // %s wird durch eine E-Mail-Adresse ersetzt
@@ -182,7 +193,9 @@ var X = {
 			break;
 		case 2:
 			X.doc = document;
-			setTimeout(function() { X.onFrameLoad(true); }, 100);
+			
+			var showPanel = !X.embedded;
+			setTimeout(function() { X.onFrameLoad(showPanel); }, 100);
 			break;
 		}
 		
@@ -238,11 +251,11 @@ var X = {
 	/* Bugfix: MSIE kennt "position: fixed" nicht */ \
 	#overlay-toggle, #tsv-overlay { _position: absolute; } \
 </style>\
-\
+' + (X.embedded ? '': '\
 <div id="overlay-toggle">\
 	<input type="button" value=" ' + strings.start_button + ' " onclick="top.X.showOverlay(' + view + ');">\
 </div>\
-\
+') + '\
 <div id="tsv-overlay"><div id="tsv-overlay-inner"><div id="tsv-overlay-inner-2">\
 	<!-- Bugfix: MSIE7 kann im Standard Mode die Höhe von Textfeldern nicht mit CSS ändern -->\
 	<textarea id="tsv-data" rows="20"></textarea>\
@@ -272,14 +285,16 @@ var X = {
 		}
 		
 		// lade das Excel-Importfeld automatisch, wenn noch keine Daten eingetragen sind
-		var autoLoadOverlay = aShowPanel || $.grep(X.collectNames(view, true), function(aLine) {
+		var autoLoadOverlay = !X.embedded && (aShowPanel || $.grep(X.collectNames(view, true), function(aLine) {
 			// enthält die Zeile bereits Daten (eine Note oder Absenzen)?
 			return /\t/.test(aLine);
-		}).length == 0;
+		}).length == 0);
 		if (autoLoadOverlay)
 		{
 			X.showOverlay(view);
 		}
+		
+		X.embeddedCallback();
 	},
 
 	/**
@@ -638,7 +653,11 @@ var X = {
 		{
 			return 0;
 		}
-		if ($("form[action*='fct=AnmeldungMultiSave'], form[action*='Brn_Absenzverwaltung_ProAnlass.aspx']", aDocument).length > 0)
+		
+		// Kleinschreibung für cst_pages (siehe EVT CR-11450)
+		if ($("form[action*='fct=AnmeldungMultiSave'], form[action*='Brn_Absenzverwaltung_ProAnlass.aspx']" + 
+			", form[action*='fct=anmeldungmultisave'], form[action*='brn_absenzverwaltung_proanlass.aspx']", 
+			aDocument).length > 0)
 		{
 			return 1;
 		}
