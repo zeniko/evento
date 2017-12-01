@@ -26,7 +26,7 @@ if (window.X && window.X.uninit)
 // Namespace für sämtliche zusätzliche Funktionalität
 var X = {
 	// Version des Scripts:
-	version: "0.5.3", // Stand 21.11.17
+	version: "0.5.4", // Stand 01.12.17
 
 	// das im Hauptframe geladene Dokument (wird asynchron aktualisiert)
 	doc: null,
@@ -268,7 +268,7 @@ var X = {
 		if (view == 2)
 		{
 			// für JSModul sind Absenzen und Noten im gleichen Formular möglich
-			if ($("td.gradeInput ~ td > input[type=text]", pageEl).length >= 2)
+			if ($("td.gradeInput ~ td input[type=text]", pageEl).length >= 2)
 			{
 				$("#overlay-toggle input", pageEl).after('<input type="button" value=" ' + X.strings[X.lang].views[3].start_button + ' " onclick="top.X.showOverlay(3);">');
 				var validGrades = X.collectValidGrades(view);
@@ -462,6 +462,17 @@ var X = {
 							input.val(grades[name]);
 							// Auto-Speicherung durch Simulation einer Eingabe auslösen
 							input.trigger("keyup").trigger("input").trigger("blur");
+							
+							// Bugfix: manchmal ist die Eingabe beim ersten Versuch nicht
+							// erfolgreich (v.a. Eingabe von Zehntelsnoten)
+							setTimeout(function() {
+								if (input.val() != grades[name])
+								{
+									input.val(grades[name]);
+									// Auto-Speicherung durch Simulation einer Eingabe auslösen
+									input.trigger("keyup").trigger("input").trigger("blur");
+								}
+							}, 500);
 						}
 						
 						if (validGrades && !$.inArray(validGrades, grades[name]))
@@ -515,7 +526,7 @@ var X = {
 					{
 						for (var i = 0; i < 2; i++)
 						{
-							var el = $(this).parent().find("td > input[type=text]").eq(-2 + i);
+							var el = $(this).parent().find("td:not(.gradeInput) input[type=text]").eq(-2 + i);
 							// die Eingabe Server-schonend nur bei Änderung vornehmen
 							if ((el.val() || 0) != absences[name][i])
 							{
@@ -601,7 +612,7 @@ var X = {
 					case 3:
 						// Absenzen aus zwei Textfeldern sammeln
 						data = [];
-						$(this).parent().find("td > input[type=text]").slice(-2).each(function() {
+						$(this).parent().find("td:not(.gradeInput) input[type=text]").slice(-2).each(function() {
 							data.push($.trim($(this).val()).replace(/\.0+$/, ""));
 						});
 						data = data.concat(["", ""]).slice(0, 2);
@@ -908,11 +919,11 @@ var X = {
 	/**
 	 * @param aName  ein Name
 	 * @returns eine normiertere Version dieses Namens ohne Umlaute,
-	 *          geläufige Akzente und Gross-/Kleinschreibung
+	 *          geläufige Akzente, Bindestriche und Gross-/Kleinschreibung
 	 */
 	unfancyName: function(aName)
 	{
-		var lessFancy = { "äÄ": "ae", "öÖ": "oe", "üÜ": "ue", "àÀáÁâÂ": "a", "éÉèÈëËêÊ": "e", "ïÏíÍîÎ": "i", "óÓôÔ": "o", "úÚûÛ": "u", "ñÑ": "n" };
+		var lessFancy = { "äÄ": "ae", "öÖ": "oe", "üÜ": "ue", "àÀáÁâÂ": "a", "éÉèÈëËêÊ": "e", "ïÏíÍîÎ": "i", "óÓôÔ": "o", "úÚûÛ": "u", "ñÑ": "n", "-": " " };
 		
 		for (var fancy in lessFancy)
 		{
