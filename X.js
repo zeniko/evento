@@ -1,41 +1,27 @@
-﻿/* Evento Excel-Helfer  (C) 2009 - 2017 Simon Bünzli  <simon.buenzli@zeniko.ch>
+﻿/* Evento Excel-Helfer  (C) 2009 - 2019 Simon Bünzli  <simon.buenzli@zeniko.ch> */
 
-Gebrauchsanweisung
-------------------
-
-Diese Datei muss momentan von Hand geladen werden, indem die
-folgende Zeile in die Adressleiste des Browsers kopiert und
-dort mit Enter ausgeführt wird (während Evento bereits läuft):
+/*
+Zum Testen die folgende Zeile in die Adresszeile des Browsers kopieren:
 
 javascript:void(document.body.appendChild(document.createElement("script")).src="https://www.zeniko.ch/evento/X.js")
-
 */
 
+// jQuery nachladen, sofern noch nicht verfügbar (wird benötigt)
 if (!window.jQuery) {
-    // jQuery über https nachladen, sofern noch nicht geschehen
     document.body.appendChild(document.createElement("script")).src = "https://www.zeniko.ch/evento/jquery.min.js";
 }
 
+// beim Neuladen des Helfers den bereits geladenen Helfer zuerst deaktivieren
 if (window.X && window.X.uninit) {
-    // beim Neuladen des Helfers den bereits geladenen Helfer zuerst deaktivieren
     X.uninit();
 }
 
 // Namespace für sämtliche zusätzliche Funktionalität
 var X = {
     // Version des Scripts:
-    version: "0.5.4", // Stand 01.12.17
+    version: "0.6", // Stand 05.08.19
 
-    // das im Hauptframe geladene Dokument (wird asynchron aktualisiert)
-    doc: null,
-
-    // Version 1: altes Webinterface (mit Frames)
-    // Version 1.5: gemischtes Webinterface (mit iFrame, nur für IE)
-    // Version 2: aktuelles Webinterface (ohne Frames)
-    interfaceVersion: 0,
-
-    // Wenn X.js eingebettet ist, werden die Buttons nicht eingefügt 
-    // und das Overlay erscheint am Anfang nicht
+    // Wenn X.js eingebettet ist, erscheint das Overlay am Anfang nicht
     // das Callback wird am Ende von onFrameLoad aufgerufen
     // (siehe EVT CR-11450)
     embedded: window.X_IS_EMBEDDED || false,
@@ -130,11 +116,7 @@ var X = {
     },
 
     /**
-     * initialisiert den Helfer: überprüfe zehnmal pro Sekunde, ob im Hauptframe
-     * neue Inhalte geladen wurden, und füge bei Bedarf die zusätzliche
-     * Funktionalität nachträglich ein (bei Version 2 ist die Überprüfung hinfällig,
-     * da keine Frames mehr verwendet werden - da muss der Helfer jedesmal neu geladen
-     * werden)
+     * initialisiert den Helfer
      */
     init: function() {
         if (X._loaded) {
@@ -144,107 +126,56 @@ var X = {
 
         if (!window.$) {
             // jQuery ist (noch) nicht bereit
-            setTimeout(function() { X.init(); }, 100);
+            setTimeout(function() {
+                X.init();
+            }, 100);
             return;
-        }
-
-        if (!X.interfaceVersion) {
-            // bestimme die Version des Webinterfaces
-            X.interfaceVersion = X.isFormDocument(document) ? 2 :
-                $("iframe.inlineframe").length == 1 ? 1.5 : 1;
-        }
-
-        switch (X.interfaceVersion) {
-            case 1:
-                if (!window.content || !window.content.evt_content) {
-                    // Evento ist (noch) nicht bereit
-                    setTimeout(function() { X.init(); }, 100);
-                    return;
-                }
-                var firstLoad = true;
-
-                // überprüfe regelmässig, ob ein neues Dokument geladen wurde, und erweitere
-                // es, falls es sich um ein Dokument mit Evento-Formular handelt
-                X._interval = setInterval(function() {
-                    if ((content.evt_content.document != X.doc || !content.evt_content.X_ready) && content.evt_content.document.body) {
-                        X.doc = content.evt_content.document;
-                        if (X.isFormDocument(X.doc)) {
-                            // für dieses Frame ist zusätzliche Funktionalität vorhanden
-                            X.onFrameLoad(firstLoad);
-                        }
-                        content.evt_content.X_ready = true;
-                        firstLoad = false;
-                    }
-                }, 100);
-                break;
-            case 1.5:
-                X.doc = $("iframe.inlineframe").get(0).contentDocument;
-                if (X.isFormDocument(X.doc)) {
-                    // für dieses Frame ist zusätzliche Funktionalität vorhanden
-                    X.onFrameLoad(true);
-                }
-                break;
-            case 2:
-                X.doc = document;
-
-                var showPanel = !X.embedded;
-                setTimeout(function() { X.onFrameLoad(showPanel); }, 100);
-                break;
         }
 
         X.parseNumber = X.memoizeFunction(X.parseNumber);
         X.unfancyName = X.memoizeFunction(X.unfancyName);
         X._loaded = true;
+
+        var showPanel = !X.embedded;
+        X.onFrameLoad(showPanel);
     },
 
     /**
      * räumt soweit auf, dass der Helfer ohne Performance-Einbusse neu geladen werden kann
      */
     uninit: function() {
-        if (X._interval) {
-            clearInterval(X._interval);
-            delete X._interval;
-        }
+        // entferne ggf. bereits eingefügte Elemente
+        $("#tsv-overlay").remove();
     },
 
     /**
-     * füge zusätzliche Eingabehilfen ins Hauptframe ein, sofern es solcher bedarf
+     * füge zusätzliche Eingabehilfen ein, sofern es solcher bedarf
      * @param aShowPanel  gibt an, ob das Excel-Importfeld unbedingt angezeigt werden soll
      *                    oder nur, wenn das Evento-Formular noch keine Daten enthält
      */
     onFrameLoad: function(aShowPanel) {
-        // entferne ggf. bereits eingefügte Elemente
-        $("#overlay-toggle, #tsv-overlay", X.doc).remove();
-
-        if ($("td:contains('Anmeldungen'), th:contains('Anmeldungen')", X.doc).length == 0) {
+        if ($("td:contains('Anmeldungen'), th:contains('Anmeldungen')").length == 0) {
             X.lang = "fr";
         }
         X.strings[X.lang].views[2] = X.strings[X.lang].views[0];
         X.strings[X.lang].views[3] = X.strings[X.lang].views[1];
 
-        var view = X.viewType(X.doc);
+        var view = X.viewType();
         var strings = X.strings[X.lang].views[view];
 
         // füge den Knopf und das Textfeld (inkl. Styling) hinzu
-        var pageEl = view == 2 ? $("div.page", X.doc) : X.doc.body;
+        var pageEl = view == 2 ? $("div.page") : document.body;
         $(pageEl).append('\
 <style type="text/css">\
 	' + (view == 2 ? 'div.page { position: relative; }' : '') + ' \
-	#overlay-toggle { position: ' + (view != 2 ? 'fixed' : 'absolute') + '; top: 10px; right: 10px; } \
 	#tsv-overlay { position: fixed; top: 0px;' + (view != 2 ? 'left: 0px;' : 'max-width: 100%;') + 'width: 100%; height: 100%; display: none; } \
-	#tsv-overlay-inner { height: 100%; background: white; padding: 5% 5% 20px; margin-top: 134px; \
-	' + (view == 2 ? 'margin-left: 300px;' : X.interfaceVersion == 2 ? 'margin-left: 300px;' : '') + ' } \
+	#tsv-overlay-inner { height: 100%; background: white; padding: 5% 5% 20px; margin-top: 134px; margin-left: 300px; } \
 	#tsv-overlay-inner-2 { height: 70%; } \
 	/* Bugfix: Google Chrome ändert nur bei display:block Textfeldern mit CSS die Höhe */ \
 	#tsv-data { width: 100%; height: 80%; margin-bottom: 1em; display: block; } \
 	/* Bugfix: MSIE kennt "position: fixed" nicht */ \
-	#overlay-toggle, #tsv-overlay { _position: absolute; } \
+	#tsv-overlay { _position: absolute; } \
 </style>\
-' + (X.embedded ? '' : '\
-<div id="overlay-toggle">\
-	<input type="button" value=" ' + strings.start_button + ' " onclick="top.X.showOverlay(' + view + ');">\
-</div>\
-') + '\
 <div id="tsv-overlay"><div id="tsv-overlay-inner"><div id="tsv-overlay-inner-2">\
 	<!-- Bugfix: MSIE7 kann im Standard Mode die Höhe von Textfeldern nicht mit CSS ändern -->\
 	<textarea id="tsv-data" rows="20"></textarea>\
@@ -257,7 +188,6 @@ var X = {
         if (view == 2) {
             // für JSModul sind Absenzen und Noten im gleichen Formular möglich
             if ($("td.gradeInput ~ td input[type=text]", pageEl).length >= 2) {
-                $("#overlay-toggle input", pageEl).after('<input type="button" value=" ' + X.strings[X.lang].views[3].start_button + ' " onclick="top.X.showOverlay(3);">');
                 var validGrades = X.collectValidGrades(view);
                 // bei "besucht/dispensiert" Kursen werden manchmal bloss Absenzen eingegeben
                 if (validGrades && validGrades.length == 2) {
@@ -265,7 +195,7 @@ var X = {
                 }
             }
             // für JSModul werden Links anstelle von Buttons verwendet
-            $("#overlay-toggle input[type=button], #tsv-overlay input[type=button]", pageEl).replaceWith(function() {
+            $("#tsv-overlay input[type=button]", pageEl).replaceWith(function() {
                 return '<a class="linkButton" onclick="' + this.getAttribute("onclick") + '" style="float: left;"> ' + this.value + ' </a>';
             });
         }
@@ -292,15 +222,15 @@ var X = {
             return;
         }
 
-        X._kursname = $(aView >= 2 ? "td.dialogMainInfo + td" : "span[id$='lblAnlassBezeichnung']", X.doc).text() || "absent";
-        var lines = X.strings[X.lang].views[aView].default_lines.join("\n").replace("%s", X._kursname) +
+        var kursname = $(aView >= 2 ? "td.dialogMainInfo + td" : "span[id$='lblAnlassBezeichnung']").text() || "absent";
+        var lines = X.strings[X.lang].views[aView].default_lines.join("\n").replace("%s", kursname) +
             "\n" + X.collectNames(aView, true).join("\n") + "\n";
 
         if (aView >= 2) {
-            $("#tsv-data + div > a:first-child", X.doc).attr("onClick", 'top.X.acceptOverlay(' + aView + ');').html(X.strings[X.lang].views[aView].accept_button);
+            $("#tsv-data + div > a:first-child").attr("onClick", 'top.X.acceptOverlay(' + aView + ');').html(X.strings[X.lang].views[aView].accept_button);
         }
 
-        $("#tsv-overlay", X.doc).show(1000, function() {
+        $("#tsv-overlay").show(1000, function() {
             $("textarea", this).focus();
             $("textarea", this).select();
         }).find("textarea").val(lines);
@@ -311,8 +241,14 @@ var X = {
      * @param aView  muss 0 für Noten-, 1 für Absenzen-Eingaben, 2 für JSModul oder 3 für JSModul/Absenzen sein
      */
     acceptOverlay: function(aView) {
-        var lines = $("#tsv-overlay", X.doc).hide(1000).find("textarea").val().split("\n");
-        var errorColors = { "not-found": "#ff6", "grade-not-found": "#ff6", "name-double": "#fcc", "invalid-value": "#fcc", "no-number": "#ff6" };
+        var lines = $("#tsv-overlay").hide(1000).find("textarea").val().split("\n");
+        var errorColors = {
+            "not-found": "#ff6",
+            "grade-not-found": "#ff6",
+            "name-double": "#fcc",
+            "invalid-value": "#fcc",
+            "no-number": "#ff6"
+        };
 
         switch (aView) {
             case 0:
@@ -323,7 +259,7 @@ var X = {
                 // * ein "Ungültiger Wert" Fehler angezeigt, wenn die eingegebene Note in der
                 //   Auswahlliste nicht vorkam
                 // * der Wert übertragen und kein Fehler angezeigt
-                $(".tablelabel + .content1", X.doc).each(function() {
+                $(".tablelabel + .content1").each(function() {
                     var name = X.trimName($(this).text());
                     var error = [null, null];
 
@@ -363,7 +299,7 @@ var X = {
                 // * ein "Keine Zahl" Fehler angezeigt, wenn die eingegebenen Werte keine
                 //   gültigen Absenzen-Daten sind
                 // * der Wert übertragen und kein Fehler angezeigt
-                $("td.tablelabel:first-child, table.WebPart-Adaptive td:first-child", X.doc).each(function() {
+                $("td.tablelabel:first-child, table.WebPart-Adaptive td:first-child").each(function() {
                     var name = X.trimName($(this).text());
                     if (name) {
                         var error = [null, null];
@@ -400,7 +336,7 @@ var X = {
                 // * ein "Ungültiger Wert" Fehler angezeigt, wenn die eingegebene Note in der
                 //   Auswahlliste nicht vorkam
                 // * der Wert übertragen und kein Fehler angezeigt
-                $("td.validationColumn + td", X.doc).each(function() {
+                $("td.validationColumn + td").each(function() {
                     var name = X.trimName($(this).text());
                     var error = [null, null];
 
@@ -411,7 +347,9 @@ var X = {
                         } else {
                             if (validGrades && $.inArray(validGrades, grades[name])) {
                                 // bei Zehntelsnoten müssen ganze Werte auf ".0" enden
-                                grades[name] = $.grep(validGrades, function(aVal) { return aVal == grades[name]; })[0];
+                                grades[name] = $.grep(validGrades, function(aVal) {
+                                    return aVal == grades[name];
+                                })[0];
                             }
                             // die Eingabe Server-schonend nur bei Änderung vornehmen
                             if (input.val() != grades[name]) {
@@ -457,7 +395,7 @@ var X = {
                 // * ein "Keine Zahl" Fehler angezeigt, wenn die eingegebenen Werte keine
                 //   gültigen Absenzen-Daten sind
                 // * der Wert übertragen und kein Fehler angezeigt
-                $("td.validationColumn + td", X.doc).each(function() {
+                $("td.validationColumn + td").each(function() {
                     var name = X.trimName($(this).text());
                     var error = [null, null];
 
@@ -497,7 +435,7 @@ var X = {
      * bricht die Excel-Eingabe ab
      */
     cancelOverlay: function() {
-        $("#tsv-overlay", X.doc).hide(1000);
+        $("#tsv-overlay").hide(1000);
     },
 
     /**
@@ -513,7 +451,7 @@ var X = {
         var nameCell = aView >= 2 ? "td.validationColumn + td" :
             aView == 0 ? ".tablelabel + .content1" :
             "td.tablelabel:first-child, table.WebPart-Adaptive td:first-child";
-        $(nameCell, X.doc).each(function() {
+        $(nameCell).each(function() {
             var name = X.trimName($(this).text());
             if (name) {
                 var data = "";
@@ -566,7 +504,7 @@ var X = {
      *          oder |null| falls die Notenwerte in ein Textfeld eingegeben werden
      */
     collectValidGrades: function(aView) {
-        var firstSelect = $(aView == 2 ? "td.gradeInput select" : ".tablelabel + .content1", X.doc).parent().find("select").get(0);
+        var firstSelect = $(aView == 2 ? "td.gradeInput select" : ".tablelabel + .content1").parent().find("select").get(0);
         if (!firstSelect) {
             return null;
         }
@@ -587,28 +525,20 @@ var X = {
     /**
      * @returns welche Ansicht das Dokument bietet (0: Noteneingabe, 1: Absenzeneingabe, 2: JSModul, -1: nicht unterstützt)
      */
-    viewType: function(aDocument) {
-        if ($("form[action*='Brn_QualifikationDurchDozenten.aspx']", aDocument).length > 0) {
+    viewType: function() {
+        if ($("form[action*='Brn_QualifikationDurchDozenten.aspx']").length > 0) {
             return 0;
         }
 
         // Kleinschreibung für cst_pages (siehe EVT CR-11450)
         if ($("form[action*='fct=AnmeldungMultiSave'], form[action*='Brn_Absenzverwaltung_ProAnlass.aspx']" +
-                ", form[action*='fct=anmeldungmultisave'], form[action*='brn_absenzverwaltung_proanlass.aspx']",
-                aDocument).length > 0) {
+                ", form[action*='fct=anmeldungmultisave'], form[action*='brn_absenzverwaltung_proanlass.aspx']").length > 0) {
             return 1;
         }
-        if ($("form[action*='./brn_qualifikationdurchdozenten.aspx']", aDocument).length > 0) {
+        if ($("form[action*='./brn_qualifikationdurchdozenten.aspx']").length > 0) {
             return 2;
         }
         return -1;
-    },
-
-    /**
-     * @returns ob das angegebene Dokument ein unterstütztes Evento-Formular enthält
-     */
-    isFormDocument: function(aDocument) {
-        return X.viewType(aDocument) != -1;
     },
 
     /**
@@ -636,7 +566,13 @@ var X = {
 
         // zuerst muss das Muster bestimmt werden, in welchem Namen und Werte auftreten;
         // das meist-verwendete Namensschema und die letzte Spalte mit Zahlen werden verwendet
-        var stats = { normal: 0, split: 0, split_rev: 0, rotate: 0, gradeRow: 1 };
+        var stats = {
+            normal: 0,
+            split: 0,
+            split_rev: 0,
+            rotate: 0,
+            gradeRow: 1
+        };
         for (var i = 0; i < aData.length; i++) {
             // ignoriere Leerzeilen und Kommentarzeilen
             if (!aData[i] || aData[i].charAt(0) == "#") {
@@ -811,7 +747,7 @@ var X = {
      * @returns den Namen mit normalisierten Leerzeichen
      */
     trimName: function(aName) {
-        // Bugfix: MSIE produziert in interfaceVersion 1 ein geschütztes Leerzeichen (&#160;)
+        // Bugfix: MSIE produziert unter Umständen ein geschütztes Leerzeichen (&#160;)
         return $.trim(aName.replace(/[\s\xA0]+/g, " "));
     },
 
@@ -821,7 +757,18 @@ var X = {
      *          geläufige Akzente, Bindestriche und Gross-/Kleinschreibung
      */
     unfancyName: function(aName) {
-        var lessFancy = { "äÄ": "ae", "öÖ": "oe", "üÜ": "ue", "àÀáÁâÂ": "a", "éÉèÈëËêÊ": "e", "ïÏíÍîÎ": "i", "óÓôÔ": "o", "úÚûÛ": "u", "ñÑ": "n", "-": " " };
+        var lessFancy = {
+            "äÄ": "ae",
+            "öÖ": "oe",
+            "üÜ": "ue",
+            "àÀáÁâÂ": "a",
+            "éÉèÈëËêÊ": "e",
+            "ïÏíÍîÎ": "i",
+            "óÓôÔ": "o",
+            "úÚûÛ": "u",
+            "ñÑ": "n",
+            "-": " "
+        };
 
         for (var fancy in lessFancy) {
             aName = aName.replace(new RegExp("[" + fancy + "]", "g"), lessFancy[fancy]);
@@ -916,9 +863,9 @@ var X = {
     },
 
     /**
-     * testet den Datenparser; muss manuell aufgerufen werden:
+     * testet den Datenparser; muss in der Konsole manuell aufgerufen werden:
      * 
-     * javascript:alert(X.test().join("\n")||"Tests%20bestanden.")
+     * X.test()
      */
     test: function() {
         var tests = [
@@ -990,8 +937,20 @@ var X = {
             "Tester Beta"
         ];
         var validGrades = "1 2.2 3.5 5.5 6 disp besucht".split(" ");
-        var output = { "Name Vorname": 1, "Family Name Given Name": 2.2, "Nom Prénom": 3.5, "Nàlizätión Iñtërnâtiô": 6, "Sportler Profi": "disp" };
-        var absenceOutput = { "Name Vorname": 0, "Family Name Given Name": 1, "Nom Prénom": 2, "Nàlizätión Iñtërnâtiô": 3, "Cognome Nome": "?" };
+        var output = {
+            "Name Vorname": 1,
+            "Family Name Given Name": 2.2,
+            "Nom Prénom": 3.5,
+            "Nàlizätión Iñtërnâtiô": 6,
+            "Sportler Profi": "disp"
+        };
+        var absenceOutput = {
+            "Name Vorname": 0,
+            "Family Name Given Name": 1,
+            "Nom Prénom": 2,
+            "Nàlizätión Iñtërnâtiô": 3,
+            "Cognome Nome": "?"
+        };
 
         var errors = [];
 
@@ -1037,7 +996,7 @@ var X = {
             assert(count >= 0, "Absenzen-Test " + (i + 1) + ": Differenz von " + -count + " zur Anzahl erwarteter Ergebnisse");
         });
 
-        return errors;
+        return errors.join("\n") || "Tests bestanden.";
     }
 };
 
