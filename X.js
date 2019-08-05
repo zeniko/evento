@@ -49,7 +49,8 @@ var X = {
     strings: {
         de: {
             views: [{
-                start_button: "Excel-Eingabe für Noten",
+                start_dropdown: "Excel-Eingabe",
+                start_button: "für Noten",
                 accept_button: "Noten übernehmen",
                 cancel_button: "Abbrechen",
                 feedback_to: "Feedback an %s", // %s wird durch eine E-Mail-Adresse ersetzt
@@ -63,7 +64,8 @@ var X = {
                     ""
                 ]
             }, {
-                start_button: "Excel-Eingabe für Absenzen",
+                start_dropdown: "Excel-Eingabe",
+                start_button: "für Absenzen",
                 accept_button: "Absenzen übernehmen",
                 cancel_button: "Abbrechen",
                 feedback_to: "Feedback an %s", // %s wird durch eine E-Mail-Adresse ersetzt
@@ -87,7 +89,8 @@ var X = {
         },
         fr: {
             views: [{
-                start_button: "Saisie Excel pour les notes",
+                start_dropdown: "Saisie Excel",
+                start_button: "pour les notes",
                 accept_button: "Valider les notes",
                 cancel_button: "Annuler",
                 feedback_to: "Envoyer un feedback à %s", // %s wird durch eine E-Mail-Adresse ersetzt
@@ -101,7 +104,8 @@ var X = {
                     ""
                 ]
             }, {
-                start_button: "Saisie Excel pour les absences",
+                start_dropdown: "Saisie Excel",
+                start_button: "pour les absences",
                 accept_button: "Valider les absences",
                 cancel_button: "Annuler",
                 feedback_to: "Envoyer un feedback à %s", // %s wird durch eine E-Mail-Adresse ersetzt
@@ -227,12 +231,12 @@ var X = {
 <style type="text/css">\
 	' + (view == 2 ? 'div.page { position: relative; }' : '') + ' \
 	#overlay-toggle { position: ' + (view != 2 ? 'fixed' : 'absolute') + '; top: 10px; right: 10px; } \
-	#tsv-overlay { position: fixed; top: 0px;' + (view != 2 ? 'left: 0px;' : 'max-width: 1200px;') + 'width: 100%; height: 100%; display: none; } \
-	#tsv-overlay-inner { height: 100%; background: white; padding: 5% 5% 20px; \
-	' + (view == 2 ? 'margin-left: 292px;' : X.interfaceVersion == 2 ? 'margin-left: 285px;' : '') + ' } \
+	#tsv-overlay { position: fixed; top: 0px;' + (view != 2 ? 'left: 0px;' : 'max-width: 100%;') + 'width: 100%; height: 100%; display: none; } \
+	#tsv-overlay-inner { height: 100%; background: white; padding: 5% 5% 20px; margin-top: 134px; \
+	' + (view == 2 ? 'margin-left: 300px;' : X.interfaceVersion == 2 ? 'margin-left: 300px;' : '') + ' } \
 	#tsv-overlay-inner-2 { height: 70%; } \
 	/* Bugfix: Google Chrome ändert nur bei display:block Textfeldern mit CSS die Höhe */ \
-	#tsv-data { width: 100%; height: 100%; margin-bottom: 1em; display: block; } \
+	#tsv-data { width: 100%; height: 80%; margin-bottom: 1em; display: block; } \
 	/* Bugfix: MSIE kennt "position: fixed" nicht */ \
 	#overlay-toggle, #tsv-overlay { _position: absolute; } \
 </style>\
