@@ -169,7 +169,7 @@ var X = {
 <style type="text/css">\
 	' + (view == 2 ? 'div.page { position: relative; }' : '') + ' \
 	#tsv-overlay { position: fixed; top: 0px;' + (view != 2 ? 'left: 0px;' : 'max-width: 100%;') + 'width: 100%; height: 100%; display: none; } \
-	#tsv-overlay-inner { height: 100%; background: white; padding: 5% 5% 20px; margin-top: 134px; margin-left: 300px; } \
+	#tsv-overlay-inner { height: 100%; background: white; padding: 5% 5% 20px; margin-top: 80px; margin-left: 300px; } \
 	#tsv-overlay-inner-2 { height: 70%; } \
 	/* Bugfix: Google Chrome ändert nur bei display:block Textfeldern mit CSS die Höhe */ \
 	#tsv-data { width: 100%; height: 80%; margin-bottom: 1em; display: block; } \
@@ -196,7 +196,7 @@ var X = {
             }
             // für JSModul werden Links anstelle von Buttons verwendet
             $("#tsv-overlay input[type=button]", pageEl).replaceWith(function() {
-                return '<a class="linkButton" onclick="' + this.getAttribute("onclick") + '" style="float: left;"> ' + this.value + ' </a>';
+                return '<a class="linkButton" onclick="' + this.getAttribute("onclick") + '" style="float: left; margin-right: 0.5em;"> ' + this.value + ' </a>';
             });
         }
 
@@ -378,13 +378,13 @@ var X = {
                         error = ["not-found", name];
                     }
 
-                    if ($(this).parent().children("td.errortext").length == 0) {
-                        $(this).parent().append("<td class='errortext'></td>");
+                    if ($(this).parent().find("span.errortext").length == 0) {
+                        $(this).parent().find("td").last().append(" <span class='errortext'></span>");
                     }
 
                     var errorString = error[0] && X.strings[X.lang].errors[error[0].replace(/-/g, "_")] || "";
-                    $(this).parent().children("td").css("background-color", errorColors[error[0]] || "").end()
-                        .children("td.errortext").text(errorString.replace("%s", error[1]));
+                    $(this).parent().children("td").css("background-color", errorColors[error[0]] || "")
+                        .children("span.errortext").text(errorString.replace("%s", error[1]));
                 });
                 break;
             case 3:
@@ -419,13 +419,13 @@ var X = {
                         error = ["not-found", name];
                     }
 
-                    if ($(this).parent().children("td.errortext").length == 0) {
-                        $(this).parent().append("<td class='errortext'></td>");
+                    if ($(this).parent().find("span.errortext").length == 0) {
+                        $(this).parent().find("td").last().append(" <span class='errortext'></span>");
                     }
 
                     var errorString = error[0] && X.strings[X.lang].errors[error[0].replace(/-/g, "_")] || "";
-                    $(this).parent().children("td").css("background-color", errorColors[error[0]] || "").end()
-                        .children("td.errortext").text(errorString.replace("%s", error[1]));
+                    $(this).parent().children("td").css("background-color", errorColors[error[0]] || "")
+                        .children("span.errortext").text(errorString.replace("%s", error[1]));
                 });
                 break;
         }
@@ -505,6 +505,12 @@ var X = {
      */
     collectValidGrades: function(aView) {
         var firstSelect = $(aView == 2 ? "td.gradeInput select" : ".tablelabel + .content1").parent().find("select").get(0);
+        // JSModul verwendet seit 2019 eine Liste anstelle einer Auswahl
+        if (!firstSelect && aView == 2 && $("td.gradeInput ul.dialogContextMenu").length > 0) {
+            firstSelect = {
+                options: $("td.gradeInput ul.dialogContextMenu").first().find("li")
+            };
+        }
         if (!firstSelect) {
             return null;
         }
@@ -735,7 +741,7 @@ var X = {
         {
             return parseFloat(aString.replace(",", "."));
         }
-        if (/^([1-6]) (\d+)\/(\d+)$/.test(aString) && RegExp.$2 != 0 && RegExp.$3 - RegExp.$2 > 0) // gemeiner Bruch
+        if (/^([1-6]) (\d+)\/(\d+)$/.test(aString) && RegExp.$3 != 0 && RegExp.$3 - RegExp.$2 > 0) // gemeiner Bruch
         {
             return parseInt(RegExp.$1) + parseInt(RegExp.$2) / parseInt(RegExp.$3);
         }
