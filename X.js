@@ -663,12 +663,13 @@ var X = {
      *               bestimmt werden sollen
      * @param aKnownNames  eine Liste der dem System bekannten Namen
      * @param aValidGrades  eine Liste der vom System akzeptierten Noten
+     *                      (Beurteilungen in Worten dürfen abgekürzt werden)
      * @returns einen Hash, welcher jedem/r SchülerIn eine Note zuweist
      */
     parseGradeData: function(aData, aKnownNames, aValidGrades) {
         function validate(aValue) {
             var value = X.parseNumber(aValue);
-            return !isNaN(value) || aValidGrades && $.inArray(value, aValidGrades) > -1;
+            return !isNaN(value) || aValidGrades && /^[^\W\d]+\.?$/.test(aValue) && X.findByPrefix(aValue, aValidGrades);
         }
         var lines = X.parseDataHelper(aData, aKnownNames, validate);
 
@@ -677,7 +678,7 @@ var X = {
             var name = lines[i][0];
             var grade = lines[i].slice(-1)[0];
 
-            grades[name] = name in grades ? "error-name-double" : X.parseNumber(grade || "") || grade || "error-grade-not-found";
+            grades[name] = name in grades ? "error-name-double" : X.parseNumber(grade || "") || X.findByPrefix(grade, aValidGrades) || "error-grade-not-found";
         }
 
         return grades;
@@ -851,6 +852,36 @@ var X = {
     },
 
     /**
+     * Prüft, ob in der Liste aArray genau eine Zeichenkette auftritt,
+     * welche mit aPrefix beginnt, und gibt diese zurück.
+     * 
+     * @param aPrefix  eine Zeichenkette
+     * @param aArray  eine Liste von Zeichenketten
+     * @returns eine eindeutige mit aPrefix beginnende Zeichenkette aus
+     *          aArray (oder null, falls es keine solche gibt)
+     */
+    findByPrefix: function(aPrefix, aArray) {
+        var found = null;
+
+        if (/\.$/.test(aPrefix)) {
+            // abgekürzte Zeichenketten dürfen auf ein Punkt enden
+            aPrefix = aPrefix.slice(0, -1);
+        }
+
+        for (var i = 0; i < aArray.length; i++) {
+            if (aArray[i].indexOf(aPrefix) == 0) {
+                if (found != null) {
+                    // Zeichenkette ist nicht eindeutig
+                    return null;
+                }
+                found = aArray[i];
+            }
+        }
+
+        return found;
+    },
+
+    /**
      * @param aFunc  die zu ersetzende Nebeneffekt-freie Funktion
      * @returns eine memoisierte Version dieser Funktion
      */
@@ -884,7 +915,7 @@ var X = {
                 "Nàlizätión	Iñtërnâtiô	6",
                 "Cognome	Nome", // fehlende Note
                 "Apellido Nombre	5.5", // Leerschlag statt Tabulator
-                "Sportler	Profi	disp",
+                "Sportler	Profi	dispensiert",
                 "Tester	Beta	Besucht" // Gross-/Kleinschreibung des Prädikats
             ],
             [ // Muster: Nachname<Leerschlag>Vorname<Tab>beliebig<Tab>Note als gemeiner Bruch
@@ -905,7 +936,7 @@ var X = {
                 "Internatio	Nalizaetion	#	6.00",
                 "Nome	Cognome		4 .5", // ungültige Note
                 "Nombre	Apellido	?	7.5", // ungültige Note
-                "Profi	Sportler		disp"
+                "Profi	Sportler		disp."
             ],
             [ // Muster: VORNAME<Leerschlag>NAME<Tab>NOTE<Tab>beliebig
                 "VORNAME NAME	1	1+",
@@ -915,7 +946,7 @@ var X = {
                 "NOME COGNOME	2 1.3/2	NaN", // ungültige Note
                 "NOMBRE APELLIDO	4", // zweimal der-
                 "nómbré ápéllídó	5", // selbe Name
-                "PROFI SPORTLER	disp",
+                "PROFI SPORTLER	dispensiert",
                 "Beta Tester	xbesucht" // Tippfehler im Prädikat
             ]
         ];
@@ -942,13 +973,13 @@ var X = {
             "Sportler Profi",
             "Tester Beta"
         ];
-        var validGrades = "1 2.2 3.5 5.5 6 disp besucht".split(" ");
+        var validGrades = "1 2.2 3.5 5.5 6 dispensiert besucht".split(" ");
         var output = {
             "Name Vorname": 1,
             "Family Name Given Name": 2.2,
             "Nom Prénom": 3.5,
             "Nàlizätión Iñtërnâtiô": 6,
-            "Sportler Profi": "disp"
+            "Sportler Profi": "dispensiert"
         };
         var absenceOutput = {
             "Name Vorname": 0,
