@@ -19,7 +19,7 @@ if (window.X && window.X.uninit) {
 // Namespace für sämtliche zusätzliche Funktionalität
 var X = {
     // Version des Scripts:
-    version: "0.6", // Stand 05.08.19
+    version: "0.6.1", // Stand 08.08.19
 
     // Wenn X.js eingebettet ist, erscheint das Overlay am Anfang nicht
     // das Callback wird am Ende von onFrameLoad aufgerufen
@@ -345,7 +345,7 @@ var X = {
                         if (/^error-(.*)/.test(grades[name])) {
                             error = [RegExp.$1, name];
                         } else {
-                            if (validGrades && $.inArray(validGrades, grades[name])) {
+                            if (validGrades && X.contains(validGrades, grades[name])) {
                                 // bei Zehntelsnoten müssen ganze Werte auf ".0" enden
                                 grades[name] = $.grep(validGrades, function(aVal) {
                                     return aVal == grades[name];
@@ -368,7 +368,7 @@ var X = {
                                 }, 500);
                             }
 
-                            if (validGrades && !$.inArray(validGrades, grades[name])) {
+                            if (validGrades && !X.contains(validGrades, grades[name])) {
                                 error = ["invalid-value", grades[name]];
                             } else if (!validGrades && typeof(grades[name]) != "number") {
                                 error = ["no-number", grades[name]];
@@ -379,7 +379,13 @@ var X = {
                     }
 
                     if ($(this).parent().find("span.errortext").length == 0) {
-                        $(this).parent().find("td").last().append(" <span class='errortext'></span>");
+                        var lastCell = $(this).parent().find("td").last();
+                        // falls die letzte Zelle nur Text enthält, wird die Fehlermeldung
+                        // daran angehängt, andernfalls kommt sie in eine neue Zelle
+                        if (lastCell.find("input, textarea, select, [contenteditable]").length > 0) {
+                            lastCell = $("<td></td>").insertAfter(lastCell);
+                        }
+                        lastCell.append(" <span class='errortext'></span>");
                     }
 
                     var errorString = error[0] && X.strings[X.lang].errors[error[0].replace(/-/g, "_")] || "";
@@ -420,7 +426,13 @@ var X = {
                     }
 
                     if ($(this).parent().find("span.errortext").length == 0) {
-                        $(this).parent().find("td").last().append(" <span class='errortext'></span>");
+                        var lastCell = $(this).parent().find("td").last();
+                        // falls die letzte Zelle nur Text enthält, wird die Fehlermeldung
+                        // daran angehängt, andernfalls kommt sie in eine neue Zelle
+                        if (lastCell.find("input, textarea, select, [contenteditable]").length > 0) {
+                            lastCell = $("<td></td>").insertAfter(lastCell);
+                        }
+                        lastCell.append(" <span class='errortext'></span>");
                     }
 
                     var errorString = error[0] && X.strings[X.lang].errors[error[0].replace(/-/g, "_")] || "";
@@ -676,9 +688,9 @@ var X = {
         var grades = {};
         for (i = 0; i < lines.length; i++) {
             var name = lines[i][0];
-            var grade = lines[i].slice(-1)[0];
+            var grade = lines[i][lines[i].length - 1];
 
-            grades[name] = name in grades ? "error-name-double" : X.parseNumber(grade || "") || X.findByPrefix(grade, aValidGrades) || "error-grade-not-found";
+            grades[name] = name in grades ? "error-name-double" : X.parseNumber(grade || "") || X.findByPrefix(grade, aValidGrades) || grade || "error-grade-not-found";
         }
 
         return grades;
@@ -852,6 +864,22 @@ var X = {
     },
 
     /**
+     * Prüft, ob aItem in der Liste aArray enthalten ist.
+     * 
+     * @param aArray  eine Liste
+     * @param aItem  ein Wert
+     * @returns ob der Wert in der Liste enthalten ist
+     */
+    contains: function(aArray, aItem) {
+        for (var i = 0; i < aArray.length; i++) {
+            if (aArray[i] == aItem) {
+                return true;
+            }
+        }
+        return false;
+    },
+
+    /**
      * Prüft, ob in der Liste aArray genau eine Zeichenkette auftritt,
      * welche mit aPrefix beginnt, und gibt diese zurück.
      * 
@@ -1008,7 +1036,7 @@ var X = {
                 count++;
             }
             for (name in result) {
-                if ($.inArray(name, knownNames) > -1 && $.inArray(result[name].toString(), validGrades) > -1) {
+                if (X.contains(name, knownNames) && X.contains(result[name].toString(), validGrades)) {
                     count--;
                 }
             }
@@ -1026,7 +1054,7 @@ var X = {
                 count++;
             }
             for (name in result) {
-                if ($.inArray(name, knownNames) > -1 && typeof(result[name]) != "string" && result[name][0] === result[name][1]) {
+                if (X.contains(name, knownNames) && typeof(result[name]) != "string" && result[name][0] === result[name][1]) {
                     count--;
                 }
             }
