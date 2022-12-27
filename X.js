@@ -1,4 +1,4 @@
-﻿/* Evento Excel-Helfer  (C) 2009 - 2019 Simon Bünzli  <simon.buenzli@zeniko.ch> */
+﻿/* Evento Excel-Helfer  (C) 2009 - 2022 Simon Bünzli  <simon.buenzli@zeniko.ch> */
 
 /*
 Zum Testen die folgende Zeile in die Adresszeile des Browsers kopieren:
@@ -19,7 +19,7 @@ if (window.X && window.X.uninit) {
 // Namespace für sämtliche zusätzliche Funktionalität
 var X = {
     // Version des Scripts:
-    version: "0.6.1", // Stand 08.08.19
+    version: "0.7.0-a1", // Stand 27.12.2022
 
     // Wenn X.js eingebettet ist, erscheint das Overlay am Anfang nicht
     // das Callback wird am Ende von onFrameLoad aufgerufen
@@ -63,6 +63,23 @@ var X = {
                     "# die Absenzen (zuerst die entschuldigten, dann die unentschuldigten)",
                     ""
                 ]
+            },
+            null, // view 2 und 3 verwenden die Zeichenketten von view 0 und 1
+            null, {
+                start_dropdown: "Excel-Eingabe",
+                start_button: "für Noten",
+                accept_button: "Daten übernehmen",
+                cancel_button: "Abbrechen",
+                feedback_to: "Feedback an %s", // %s wird durch eine E-Mail-Adresse ersetzt
+                default_lines: [
+                    "# Hierhin können Daten aus einer Tabelle kopiert/eingefügt werden",
+                    "# (für %s):", // %s wird durch die Kursbezeichnung ersetzt
+                    "",
+                    "# die ERSTE Spalte (oder die ersten zwei Spalten) müssen",
+                    "# die Namen der SchülerInnen enthalten, die LETZTE Spalte",
+                    "# die Punkte/Noten, dazwischen liegende Spalten werden ignoriert",
+                    ""
+                ]
             }],
             // Fehlermeldungen erscheinen direkt neben der Noten-/Absenzeneingabe:
             errors: {
@@ -101,6 +118,23 @@ var X = {
                     "# La PREMIERE colonne ou les deux premières colonnes doivent",
                     "# contenir le nom des élèves, les DEUX DERNIERES colonnes",
                     "# les absences (d’abord les absences excusées, puis les autres)",
+                    ""
+                ]
+            },
+            null, // view 2 und 3 verwenden die Zeichenketten von view 0 und 1
+            null, {
+                start_dropdown: "Saisie Excel",
+                start_button: "pour les notes",
+                accept_button: "Valider les données",
+                cancel_button: "Annuler",
+                feedback_to: "Envoyer un feedback à %s", // %s wird durch eine E-Mail-Adresse ersetzt
+                default_lines: [
+                    "# Possibilité de copier/insérer ici les données d’un tableau",
+                    "# (pour %s) :", // %s wird durch die Kursbezeichnung ersetzt
+                    "",
+                    "# La PREMIERE colonne ou les deux premières colonnes doivent",
+                    "# contenir le nom des élèves, la DERNIERE colonne les points",
+                    "# ou notes ; ignorer les colonnes situées entre celles-ci.",
                     ""
                 ]
             }],
@@ -154,7 +188,7 @@ var X = {
      *                    oder nur, wenn das Evento-Formular noch keine Daten enthält
      */
     onFrameLoad: function(aShowPanel) {
-        if ($("td:contains('Anmeldungen'), th:contains('Anmeldungen')").length == 0) {
+        if ($("td:contains('Anmeldungen'), th:contains('Anmeldungen'), button:contains('Alle Tests')").length == 0) {
             X.lang = "fr";
         }
         X.strings[X.lang].views[2] = X.strings[X.lang].views[0];
@@ -164,11 +198,12 @@ var X = {
         var strings = X.strings[X.lang].views[view];
 
         // füge den Knopf und das Textfeld (inkl. Styling) hinzu
-        var pageEl = view == 2 ? $("div.page") : document.body;
+        var isModernUI = view == 2 || view == 4;
+        var pageEl = isModernUI ? $("div.page") : document.body;
         $(pageEl).append('\
 <style type="text/css">\
-	' + (view == 2 ? 'div.page { position: relative; }' : '') + ' \
-	#tsv-overlay { position: fixed; top: 0px;' + (view != 2 ? 'left: 0px;' : 'max-width: 100%;') + 'width: 100%; height: 100%; display: none; } \
+	' + (isModernUI ? 'div.page { position: relative; }' : '') + ' \
+	#tsv-overlay { position: fixed; top: 0px;' + (!isModernUI ? 'left: 0px;' : 'max-width: 100%;') + 'width: 100%; height: 100%; display: none; } \
 	#tsv-overlay-inner { height: 100%; background: white; padding: 5% 5% 20px; margin-top: 80px; margin-left: 300px; } \
 	#tsv-overlay-inner-2 { height: 70%; } \
 	/* Bugfix: Google Chrome ändert nur bei display:block Textfeldern mit CSS die Höhe */ \
@@ -200,6 +235,12 @@ var X = {
             });
         }
 
+        if (view == 4) {
+            // für Tests muss die Eingabe immer explizit mit der gewünschten Test-Nummer aufgerufen werden
+            // X.collectTestNames() gibt die möglichen Namen an
+            // X.showOverlay(4, "Name") lädt die Eingabemaske
+        }
+
         // lade das Excel-Importfeld automatisch, wenn noch keine Daten eingetragen sind
         var autoLoadOverlay = !X.embedded && (aShowPanel || $.grep(X.collectNames(view, true), function(aLine) {
             // enthält die Zeile bereits Daten (eine Note oder Absenzen)?
@@ -214,20 +255,39 @@ var X = {
 
     /**
      * zeigt das Excel-Eingabefeld an (und füllt es soweit wie möglich - für den Export)
-     * @param aView  muss 0 für Noten-, 1 für Absenzen-Eingaben, 2 für JSModul oder 3 für JSModul/Absenzen sein
+     * @param aView  muss 0 für Noten-, 1 für Absenzen-Eingaben, 2 für JSModul, 3 für JSModul/Absenzen oder 4 für Tests sein
+     * @param aTest  muss der Name (oder Index) des gewüschten Tests sein (für aView == 4)
      */
-    showOverlay: function(aView) {
-        if (aView >= 2 && $("td.gradeInput").length == 0) {
+    showOverlay: function(aView, aTest) {
+        var lines = [];
+        var index = -1;
+        if (aView == 4 && aTest) {
+            var tests = X.collectTestNames();
+            index = tests.indexOf(aTest);
+            if (index == -1 && tests[aTest]) {
+                index = aTest;
+            }
+            if (index == -1) {
+                // ungültiger Wert für aTest
+                return;
+            }
+
+            var kursname = tests[index];
+            lines = X.strings[X.lang].views[aView].default_lines.join("\n").replace("%s", kursname) +
+                "\n" + X.collectNames(aView, index).join("\n") + "\n";
+        }
+        else if (aView >= 2 && $("td.gradeInput").length == 0) {
             // "Weiter zur Auswertung" entlädt nicht
             return;
         }
-
-        var kursname = $(aView >= 2 ? "td.dialogMainInfo + td" : "span[id$='lblAnlassBezeichnung']").text() || "absent";
-        var lines = X.strings[X.lang].views[aView].default_lines.join("\n").replace("%s", kursname) +
-            "\n" + X.collectNames(aView, true).join("\n") + "\n";
+        else {
+            var kursname = $(aView >= 2 ? "td.dialogMainInfo + td" : "span[id$='lblAnlassBezeichnung']").text() || "absent";
+            lines = X.strings[X.lang].views[aView].default_lines.join("\n").replace("%s", kursname) +
+                "\n" + X.collectNames(aView, true).join("\n") + "\n";
+        }
 
         if (aView >= 2) {
-            $("#tsv-data + div > a:first-child").attr("onClick", 'top.X.acceptOverlay(' + aView + ');').html(X.strings[X.lang].views[aView].accept_button);
+            $("#tsv-data + div > input[type=button]:first-child").attr("onClick", 'top.X.acceptOverlay(' + aView + ', ' + index + ');').html(X.strings[X.lang].views[aView].accept_button);
         }
 
         $("#tsv-overlay").show(1000, function() {
@@ -238,9 +298,10 @@ var X = {
 
     /**
      * übernimmt die Angaben des Excel-Eingabefelds ins Evento-Formular
-     * @param aView  muss 0 für Noten-, 1 für Absenzen-Eingaben, 2 für JSModul oder 3 für JSModul/Absenzen sein
+     * @param aView  muss 0 für Noten-, 1 für Absenzen-Eingaben, 2 für JSModul, 3 für JSModul/Absenzen oder 4 für Tests sein
+     * @param aTest  muss der Index des gewählten Tests sein (für aView == 4)
      */
-    acceptOverlay: function(aView) {
+    acceptOverlay: function(aView, aTest) {
         var lines = $("#tsv-overlay").hide(1000).find("textarea").val().split("\n");
         var errorColors = {
             "not-found": "#ff6",
@@ -291,6 +352,7 @@ var X = {
                         .children("td.errortext").text(errorString.replace("%s", error[1]));
                 });
                 break;
+
             case 1:
                 var absences = X.parseAbsenceData(lines, X.collectNames(aView));
 
@@ -327,6 +389,7 @@ var X = {
                     }
                 });
                 break;
+
             case 2:
                 var validGrades = X.collectValidGrades(aView);
                 var grades = X.parseGradeData(lines, X.collectNames(aView), validGrades);
@@ -393,6 +456,7 @@ var X = {
                         .children("span.errortext").text(errorString.replace("%s", error[1]));
                 });
                 break;
+
             case 3:
                 var absences = X.parseAbsenceData(lines, X.collectNames(aView));
 
@@ -440,6 +504,67 @@ var X = {
                         .children("span.errortext").text(errorString.replace("%s", error[1]));
                 });
                 break;
+
+            case 4:
+                var validGrades = X.collectValidGrades(aView, aTest);
+                var grades = X.parseGradeData(lines, X.collectNames(aView), validGrades);
+
+                // Fehlermeldungen zurücksetzen
+                $("div.X-error").css("background-color", "").text("");
+
+                // für jede Zeile des Evento-Formulars wird entweder
+                // * ein "Name nicht gefunden" Fehler angezeigt, wenn keine Daten verfügbar waren
+                // * ein "Ungültiger Wert" Fehler angezeigt, wenn die eingegebene Note in der
+                //   Auswahlliste nicht vorkam
+                // * der Wert übertragen und kein Fehler angezeigt
+                $("erz-test-edit-grades table tbody tr:not(:last-child)").each(function() {
+                    var name = X.trimName($("td.name span:first-child", this).text());
+                    var error = [null, null];
+
+                    var cell = $("td.name, td:not(.sticky)", this).get(aTest);
+                    if (name in grades) {
+                        var input = $("input[type=number], select", cell);
+                        if (/^error-(.*)/.test(grades[name])) {
+                            error = [RegExp.$1, name];
+                        } else {
+                            if (validGrades && X.contains(validGrades, grades[name])) {
+                                // bei Zehntelsnoten müssen ganze Werte auf ".0" enden
+                                grades[name] = $.grep(validGrades, function(aVal) {
+                                    return aVal == grades[name];
+                                })[0];
+                            }
+                            
+                            var targetValue = grades[name];
+                            if (input.attr("type") != "number") {
+                                targetValue = input.find("option").filter(function() {
+                                    return $.trim($(this).text()) == grades[name];
+                                }).val() || grades[name];
+                            }
+
+                            // die Eingabe Server-schonend nur bei Änderung vornehmen
+                            if (input.val() != targetValue) {
+                                input.val(targetValue);
+                                // TODO: Angular change-Ereignis auslösen
+                                input.trigger("change");
+                            }
+
+                            if (validGrades && !X.contains(validGrades, grades[name])) {
+                                error = ["invalid-value", grades[name]];
+                            } else if (!validGrades && typeof(grades[name]) != "number") {
+                                error = ["no-number", grades[name]];
+                            }
+                        }
+                    } else {
+                        error = ["not-found", name];
+                    }
+
+                    if ($("div.X-error", cell).length == 0) {
+                        $(cell).append("<div class='X-error'></div>");
+                    }
+                    var errorString = error[0] && X.strings[X.lang].errors[error[0].replace(/-/g, "_")] || "";
+                    $("div.X-error", cell).css("background-color", errorColors[error[0]] || "").text(errorString.replace("%s", error[1]));
+                });
+                break;
         }
     },
 
@@ -451,18 +576,21 @@ var X = {
     },
 
     /**
-     * @param aView  muss 0 für Noten-, 1 für Absenzen-Eingaben, 2 für JSModul oder 3 für JSModul/Absenzen sein
+     * @param aView  muss 0 für Noten-, 1 für Absenzen-Eingaben, 2 für JSModul, 3 für JSModul/Absenzen oder 4 für Tests sein
      * @param aIncData  gibt an, ob die Noten/Absenzen zu den SchülerInnennamen
      *                  hinzugefügt werden sollen (mit Tabulatoren getrennt)
+     *                  (bei Tests ist aIncData die Nummer des gewünschten Tests)
      * @returns die Namen sämtlicher SchülerInnen aus dem Evento-Formular
      *          (optional inklusive bereits eingegebener Noten/Absenzen)
      */
     collectNames: function(aView, aIncData) {
         var values = [];
 
-        var nameCell = aView >= 2 ? "td.validationColumn + td" :
+        var nameCell = aView == 4 ? "erz-test-edit-grades tbody td.name span:first-child" :
+            aView >= 2 ? "td.validationColumn + td" :
             aView == 0 ? ".tablelabel + .content1" :
             "td.tablelabel:first-child, table.WebPart-Adaptive td:first-child";
+
         $(nameCell).each(function() {
             var name = X.trimName($(this).text());
             if (name) {
@@ -500,6 +628,17 @@ var X = {
                             data = data.concat(["", ""]).slice(0, 2);
                             data = data.join("") ? data.join("\t") : "";
                             break;
+                        case 4:
+                            // Noten/Punkte des gewünschten Tests
+                            var cell = $(this).parents("tr").find("td.name, td:not(.sticky)").get(aIncData);
+                            var number = $("input[type=number]", cell);
+                            if (number.length == 1) {
+                                data = number.val();
+                            }
+                            else {
+                                data = $.trim($("select option:selected", cell).text() || "");
+                            }
+                            break;
                     }
                 }
 
@@ -511,11 +650,41 @@ var X = {
     },
 
     /**
-     * @param aView  muss 0 für Noten-, 1 für Absenzen-Eingaben oder 2 für JSModul sein
+     * @param aView  muss 0 für Noten-, 1 für Absenzen-Eingaben, 2 für JSModul oder 4 für Tests sein
+     * @param aTest  muss der Index des gewählten Tests sein (für aView == 4)
      * @returns eine Liste sämtlicher gültigen Notenwerte aus der Auswahlliste
      *          oder |null| falls die Notenwerte in ein Textfeld eingegeben werden
      */
-    collectValidGrades: function(aView) {
+    collectValidGrades: function(aView, aTest) {
+        var values = [];
+
+        if (aView == 4 && aTest) {
+            var rows = $("erz-test-edit-grades table tbody tr");
+            var cell = $("td.name, td:not(.sticky)", rows.get(0)).get(aTest);
+            var input = $("input[type=number], select", cell);
+            if (input.attr("type") == "number") {
+                var min = parseFloat(input.attr("min")) || 0;
+                var max = parseFloat(input.attr("max")) || 0;
+                var step = parseFloat(input.attr("step")) || 0.5;
+                for (var val = min; val <= max; val += step) {
+                    var valString = val.toString()
+                        .replace(/0{4,}[1-9]\d*$/, "")
+                        .replace(/([0-8])9{4,}\d*$/, function(_0, _1) { return parseInt(_1) + 1; })
+                        .replace(/^(\d+)\.9{5,}\d*$/, function(_0, _1) { return parseInt(_1) + 1; });
+                    values.push(valString);
+                }
+            }
+            else {
+                $.each(input.get(0).options, function() {
+                    var value = $.trim($(this).text());
+                    if (value) {
+                        values.push(value);
+                    }
+                });
+            }
+            return values;
+        }
+
         var firstSelect = $(aView == 2 ? "td.gradeInput select" : ".tablelabel + .content1").parent().find("select").get(0);
         // JSModul verwendet seit 2019 eine Liste anstelle einer Auswahl
         if (!firstSelect && aView == 2 && $("td.gradeInput ul.dialogContextMenu").length > 0) {
@@ -526,8 +695,6 @@ var X = {
         if (!firstSelect) {
             return null;
         }
-
-        var values = [];
 
         $.each(firstSelect.options, function() {
             var value = $.trim($(this).text());
@@ -541,13 +708,31 @@ var X = {
     },
 
     /**
-     * @returns welche Ansicht das Dokument bietet (0: Noteneingabe, 1: Absenzeneingabe, 2: JSModul, -1: nicht unterstützt)
+     * @returns eine Liste der Namen der gefundenen, aktiven Tests
+     *          (für die Anzeige müssen |null|-Werte herausgefiltert werden)
+     */
+    collectTestNames: function() {
+        var table = $("erz-test-edit-grades table");
+        var thead = table.find("thead th");
+        var tbody = table.find("tbody tr:first-child td.name, tbody tr:first-child td:not(.sticky)");
+
+        var tests = [null];
+        for (var i = 1; i < tbody.length; i++) {
+            var name = thead.get(i).innerText.split("\n")[0];
+            var isUnlocked = X.contains(thead.get(i).innerText.split("\n"), "lock_open") || $("select[disabled]", tbody.get(i)).length == 0;
+            tests.push(isUnlocked ? name : null);
+        }
+
+        return tests;
+    },
+
+    /**
+     * @returns welche Ansicht das Dokument bietet (0: Noteneingabe, 1: Absenzeneingabe, 2 (und 3): JSModul, 4: Tests, -1: nicht unterstützt)
      */
     viewType: function() {
         if ($("form[action*='Brn_QualifikationDurchDozenten.aspx']").length > 0) {
             return 0;
         }
-
         // Kleinschreibung für cst_pages (siehe EVT CR-11450)
         if ($("form[action*='fct=AnmeldungMultiSave'], form[action*='Brn_Absenzverwaltung_ProAnlass.aspx']" +
                 ", form[action*='fct=anmeldungmultisave'], form[action*='brn_absenzverwaltung_proanlass.aspx']").length > 0) {
@@ -555,6 +740,9 @@ var X = {
         }
         if ($("form[action*='./brn_qualifikationdurchdozenten.aspx']").length > 0) {
             return 2;
+        }
+        if ($("erz-test-edit-grades").length > 0) {
+            return 4;
         }
         return -1;
     },
