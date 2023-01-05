@@ -215,7 +215,7 @@ var X = {
 	<!-- Bugfix: MSIE7 kann im Standard Mode die Höhe von Textfeldern nicht mit CSS ändern -->\
 	<textarea id="tsv-data" rows="20"></textarea>\
 	\
-	<div style="float: left;"><input type="button" class="btn btn-primary" value=" ' + strings.accept_button + ' " onclick="top.X.acceptOverlay(' + view + ');"> <input type="button" class="btn btn-primary" value=" ' + strings.cancel_button + ' " onclick="top.X.cancelOverlay();"></div>\
+	<div style="float: left;"><input type="button" class="btn btn-primary" value=" ' + strings.accept_button + ' " onclick="top.X.acceptOverlay(' + view + ');"> <input type="button" class="btn btn-secondary" value=" ' + strings.cancel_button + ' " onclick="top.X.cancelOverlay();"></div>\
 	<div style="float: right;">' + strings.feedback_to.replace("%s", '<a href="mailto:simon.buenzli@zeniko.ch?subject=Evento:%20Excel-Eingabe%20Feedback">Simon B&uuml;nzli</a>') + '</div>\
 </div></div></div>\
 		');
