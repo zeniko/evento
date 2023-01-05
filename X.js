@@ -42,7 +42,7 @@ var X = {
                 feedback_to: "Feedback an %s", // %s wird durch eine E-Mail-Adresse ersetzt
                 default_lines: [
                     "# Hierhin können Daten aus einer Tabelle kopiert/eingefügt werden",
-                    "# (für Kurs %s):", // %s wird durch die Kursbezeichnung ersetzt
+                    "# (für Fach %s):", // %s wird durch die Kursbezeichnung ersetzt
                     "",
                     "# die ERSTE Spalte (oder die ersten zwei Spalten) müssen",
                     "# die Namen der SchülerInnen enthalten, die LETZTE Spalte",
@@ -99,7 +99,7 @@ var X = {
                 feedback_to: "Envoyer un feedback à %s", // %s wird durch eine E-Mail-Adresse ersetzt
                 default_lines: [
                     "# Possibilité de copier/insérer ici les données d’un tableau",
-                    "# (pour le cours %s) :", // %s wird durch die Kursbezeichnung ersetzt
+                    "# (pour la discipline %s) :", // %s wird durch die Kursbezeichnung ersetzt
                     "",
                     "# La PREMIERE colonne ou les deux premières colonnes doivent",
                     "# contenir le nom des élèves, la DERNIERE colonne les notes",
@@ -204,7 +204,7 @@ var X = {
 <style type="text/css">\
 	' + (isModernUI ? 'div.page { position: relative; }' : '') + ' \
 	#tsv-overlay { position: fixed; top: 0px;' + (!isModernUI ? 'left: 0px;' : 'max-width: 100%;') + 'width: 100%; height: 100%; display: none; } \
-	#tsv-overlay-inner { height: 100%; background: white; padding: 5% 5% 20px; margin-top: 80px; margin-left: 300px; } \
+	#tsv-overlay-inner { height: 100%; background: white; padding: 5% 5% 20px; margin-left: 327px; } \
 	#tsv-overlay-inner-2 { height: 70%; } \
 	/* Bugfix: Google Chrome ändert nur bei display:block Textfeldern mit CSS die Höhe */ \
 	#tsv-data { width: 100%; height: 80%; margin-bottom: 1em; display: block; } \
@@ -215,7 +215,7 @@ var X = {
 	<!-- Bugfix: MSIE7 kann im Standard Mode die Höhe von Textfeldern nicht mit CSS ändern -->\
 	<textarea id="tsv-data" rows="20"></textarea>\
 	\
-	<div style="float: left;"><input type="button" value=" ' + strings.accept_button + ' " onclick="top.X.acceptOverlay(' + view + ');"> <input type="button" value=" ' + strings.cancel_button + ' " onclick="top.X.cancelOverlay();"></div>\
+	<div style="float: left;"><input type="button" class="btn btn-primary" value=" ' + strings.accept_button + ' " onclick="top.X.acceptOverlay(' + view + ');"> <input type="button" class="btn btn-primary" value=" ' + strings.cancel_button + ' " onclick="top.X.cancelOverlay();"></div>\
 	<div style="float: right;">' + strings.feedback_to.replace("%s", '<a href="mailto:simon.buenzli@zeniko.ch?subject=Evento:%20Excel-Eingabe%20Feedback">Simon B&uuml;nzli</a>') + '</div>\
 </div></div></div>\
 		');
@@ -544,8 +544,8 @@ var X = {
                             // die Eingabe Server-schonend nur bei Änderung vornehmen
                             if (input.val() != targetValue) {
                                 input.val(targetValue);
-                                // TODO: Angular change-Ereignis auslösen
-                                input.trigger("change");
+                                // change-Ereignis auslösen
+                                input[0].dispatchEvent(new Event('change'));
                             }
 
                             if (validGrades && !X.contains(validGrades, grades[name])) {
