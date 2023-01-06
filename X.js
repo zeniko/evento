@@ -527,7 +527,7 @@ var X = {
                         if (/^error-(.*)/.test(grades[name])) {
                             error = [RegExp.$1, name];
                         } else {
-                            if (validGrades && X.contains(validGrades, grades[name])) {
+                            if (validGrades && X.contains(validGrades, grades[name]) && input.attr("type") != "number") {
                                 // bei Zehntelsnoten müssen ganze Werte auf ".0" enden
                                 grades[name] = $.grep(validGrades, function(aVal) {
                                     return aVal == grades[name];
@@ -544,11 +544,12 @@ var X = {
                             // die Eingabe Server-schonend nur bei Änderung vornehmen
                             if (input.val() != targetValue) {
                                 input.val(targetValue);
-                                // change-Ereignis auslösen
+                                // change- und input-Ereignis auslösen
                                 input[0].dispatchEvent(new Event('change'));
+                                input[0].dispatchEvent(new Event('input'));
                             }
 
-                            if (validGrades && !X.contains(validGrades, grades[name])) {
+                            if (validGrades && !X.contains(validGrades, grades[name]) && input.attr("type") != "number" ) {
                                 error = ["invalid-value", grades[name]];
                             } else if (!validGrades && typeof(grades[name]) != "number") {
                                 error = ["no-number", grades[name]];
@@ -661,17 +662,13 @@ var X = {
         if (aView == 4 && aTest) {
             var rows = $("erz-test-edit-grades table tbody tr");
             var cell = $("td.name, td:not(.sticky)", rows.get(0)).get(aTest);
-            var input = $("input[type=number], select", cell);
+            var input = $("input[type=number], select", cell);         
             if (input.attr("type") == "number") {
                 var min = parseFloat(input.attr("min")) || 0;
                 var max = parseFloat(input.attr("max")) || 0;
                 var step = parseFloat(input.attr("step")) || 0.5;
                 for (var val = min; val <= max; val += step) {
-                    var valString = val.toString()
-                        .replace(/0{4,}[1-9]\d*$/, "")
-                        .replace(/([0-8])9{4,}\d*$/, function(_0, _1) { return parseInt(_1) + 1; })
-                        .replace(/^(\d+)\.9{5,}\d*$/, function(_0, _1) { return parseInt(_1) + 1; });
-                    values.push(valString);
+                    values.push(parseFloat(val).toFixed(2));
                 }
             }
             else {
