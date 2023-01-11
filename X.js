@@ -510,7 +510,7 @@ var X = {
                 var grades = X.parseGradeData(lines, X.collectNames(aView), validGrades);
 
                 // Fehlermeldungen zurücksetzen
-                $("div.X-error").css("background-color", "").text("");
+                $("div.X-error").css("color", "").text("");
 
                 // für jede Zeile des Evento-Formulars wird entweder
                 // * ein "Name nicht gefunden" Fehler angezeigt, wenn keine Daten verfügbar waren
@@ -563,7 +563,7 @@ var X = {
                         $(cell).append("<div class='X-error'></div>");
                     }
                     var errorString = error[0] && X.strings[X.lang].errors[error[0].replace(/-/g, "_")] || "";
-                    $("div.X-error", cell).css("background-color", errorColors[error[0]] || "").text(errorString.replace("%s", error[1]));
+                    $("div.X-error", cell).css("color", errorColors[error[0]] || "").text(errorString.replace("%s", error[1]));
                 });
                 break;
         }
