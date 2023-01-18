@@ -289,7 +289,7 @@ var X = {
         }
 
         if (aView >= 2) {
-            $("#tsv-data + div > input[type=button]:first-child").attr("onClick", 'top.X.acceptOverlay(' + aView + ', ' + index + ');').html(X.strings[X.lang].views[aView].accept_button);
+            $("#tsv-data + div > :first-child").attr("onClick", 'top.X.acceptOverlay(' + aView + ', ' + index + ');').html(X.strings[X.lang].views[aView].accept_button);
         }
 
         $("#tsv-overlay").show(1000, function() {
