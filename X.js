@@ -19,7 +19,7 @@ if (window.X && window.X.uninit) {
 // Namespace für sämtliche zusätzliche Funktionalität
 var X = {
     // Version des Scripts:
-    version: "0.7.0-a2", // Stand 18.01.2023
+    version: "0.7.0-a3", // Stand 18.01.2023
 
     // Wenn X.js eingebettet ist, erscheint das Overlay am Anfang nicht
     // das Callback wird am Ende von onFrameLoad aufgerufen
@@ -510,7 +510,12 @@ var X = {
 
             case 4:
                 var validGrades = X.collectValidGrades(aView, aTest);
-                var grades = X.parseGradeData(lines, X.collectNames(aView), validGrades);
+                if (X.getFirstInput(aView, aTest).type == "number") {
+                    var grades = X.parsePointData(lines, X.collectNames(aView), validGrades);
+                }
+                else {
+                    var grades = X.parseGradeData(lines, X.collectNames(aView), validGrades);
+                }
 
                 // Fehlermeldungen zurücksetzen
                 $("div.X-error").css("background-color", "").text("");
@@ -528,10 +533,7 @@ var X = {
                     if (name in grades) {
                         var input = $("input[type=number], select", cell);
                         if (/^error-(.*)/.test(grades[name])) {
-                            error = [RegExp.$1, name];
-                            if (error[0] == "grade-not-found" && input.attr("type") == "number") {
-                                error[0] = "points-not-found";
-                            }
+                            error = [RegExp.$1, grades[name]];
                         } else {
                             if (validGrades && X.contains(validGrades, grades[name]) && input.attr("type") != "number") {
                                 // bei Zehntelsnoten müssen ganze Werte auf ".0" enden
@@ -551,8 +553,8 @@ var X = {
                             if (input.val() != targetValue) {
                                 input.val(targetValue);
                                 // change- und input-Ereignis auslösen
-                                input[0].dispatchEvent(new Event('change'));
-                                input[0].dispatchEvent(new Event('input'));
+                                input.get(0).dispatchEvent(new Event('change'));
+                                input.get(0).dispatchEvent(new Event('input'));
                             }
 
                             if (validGrades && !X.contains(validGrades, grades[name])) {
@@ -663,29 +665,44 @@ var X = {
      *          oder |null| falls die Notenwerte in ein Textfeld eingegeben werden
      */
     collectValidGrades: function(aView, aTest) {
-        var values = [];
+        var input = X.getFirstInput(aView, aTest);
+        if (!input) {
+            return null;
+        }
 
+        var values = [];
+        if (aView != 4 || input.type != "number") {
+            $.each(input.options, function() {
+                var value = $.trim($(this).text());
+                // JSModule verwendet "<>", wenn nichts ausgewählt ist
+                if (value && (aView != 2 || value != "<>")) {
+                    values.push(value);
+                }
+            });
+        }
+        // Punkteeingabe für Tests
+        else {
+            var min = parseFloat(input.min) || 0;
+            var max = parseFloat(input.max) || 0;
+            var step = parseFloat(input.step) || 0.5;
+            for (var val = min; val <= max + Number.EPSILON; val += step) {
+                values.push(val.toFixed(2).replace(/\.?0+$/, ""));
+            }
+        }
+
+        return values;
+    },
+
+    /**
+     * @param aView  muss 0 für Noten-, 1 für Absenzen-Eingaben, 2 für JSModul oder 4 für Tests sein
+     * @param aTest  muss der Index des gewählten Tests sein (für aView == 4)
+     * @returns das Eingabefeld für den/die erste SchülerIn
+     */
+    getFirstInput: function(aView, aTest) {
         if (aView == 4 && aTest) {
             var rows = $("erz-test-edit-grades table tbody tr");
             var cell = $("td.name, td:not(.sticky)", rows.get(0)).get(aTest);
-            var input = $("input[type=number], select", cell);
-            if (input.attr("type") == "number") {
-                var min = parseFloat(input.attr("min")) || 0;
-                var max = parseFloat(input.attr("max")) || 0;
-                var step = parseFloat(input.attr("step")) || 0.5;
-                for (var val = min; val <= max; val += step) {
-                    values.push(val.toFixed(2).replace(/\.00$|0$/, ""));
-                }
-            }
-            else {
-                $.each(input.get(0).options, function() {
-                    var value = $.trim($(this).text());
-                    if (value) {
-                        values.push(value);
-                    }
-                });
-            }
-            return values;
+            return $("input[type=number], select", cell).get(0);
         }
 
         var firstSelect = $(aView == 2 ? "td.gradeInput select" : ".tablelabel + .content1").parent().find("select").get(0);
@@ -695,19 +712,8 @@ var X = {
                 options: $("td.gradeInput ul.dialogContextMenu").first().find("li")
             };
         }
-        if (!firstSelect) {
-            return null;
-        }
 
-        $.each(firstSelect.options, function() {
-            var value = $.trim($(this).text());
-            // JSModule verwendet "<>", wenn nichts ausgewählt ist
-            if (value && (aView != 2 || value != "<>")) {
-                values.push(value);
-            }
-        });
-
-        return values;
+        return firstSelect;
     },
 
     /**
@@ -871,7 +877,7 @@ var X = {
      */
     parseGradeData: function(aData, aKnownNames, aValidGrades) {
         function validate(aValue) {
-            var value = X.parseNumber(aValue);
+            var value = X.parseGrade(aValue);
             return !isNaN(value) || aValidGrades && /^[^\W\d]+\.?$/.test(aValue) && X.findByPrefix(aValue, aValidGrades);
         }
         var lines = X.parseDataHelper(aData, aKnownNames, validate);
@@ -881,7 +887,7 @@ var X = {
             var name = lines[i][0];
             var grade = lines[i][lines[i].length - 1];
 
-            grades[name] = name in grades ? "error-name-double" : X.parseNumber(grade || "") || X.findByPrefix(grade, aValidGrades) || grade || "error-grade-not-found";
+            grades[name] = name in grades ? "error-name-double" : X.parseGrade(grade || "") || X.findByPrefix(grade, aValidGrades) || grade || "error-grade-not-found";
         }
 
         return grades;
@@ -933,23 +939,65 @@ var X = {
     },
 
     /**
+     * liest von Excel kopierte Daten nach dem allgemeinen Schema von parseDataHelper ein,
+     * wobei die die auf die Namen folgenden Daten mindestens eine Punkte-Spalte enthalten
+     * sollten (das Format ist eine Verallgemeinerung von parseGradeData)
+     * 
+     * @param aData  Daten, aus welchen die Namen der SchülerInnen und ihre Noten
+     *               bestimmt werden sollen
+     * @param aKnownNames  eine Liste der dem System bekannten Namen
+     * @param aValidValues eine Liste der vom System akzeptierten Werten
+     * @returns einen Hash, welcher jedem/r SchülerIn eine Punktezahl zuweist
+     */
+    parsePointData: function(aData, aKnownNames, aValidGrades) {
+        function validate(aValue) {
+            var value = X.parseNumber(aValue);
+            // Werte mit drei oder mehr Nachkommastellen werden abgeleht
+            return !isNaN(value) && X.contains(aValidGrades, value.toFixed(3).replace(/\.?0+$/, ""));
+        }
+        var lines = X.parseDataHelper(aData, aKnownNames, validate);
+
+        var points = {};
+        for (i = 0; i < lines.length; i++) {
+            var name = lines[i][0];
+            var point = lines[i][lines[i].length - 1];
+
+            points[name] = name in points ? "error-name-double" : validate(point) ? X.parseNumber(point) : point ? "error-invalid-value" : "error-points-not-found";
+        }
+
+        return points;
+    },
+
+    /**
      * @param aString  möglicherweise eine Zahl (Dezimalbruch oder gemeiner Bruch)
      * @returns die Zahl als Zahl oder NaN
      */
     parseNumber: function(aString) {
-        if (/^[1-6](?:\.\d+)?$/.test(aString)) // Dezimalbruch
+        if (/^\d+(?:\.\d+)?$/.test(aString)) // Dezimalbruch
         {
             return parseFloat(aString);
         }
-        if (/[1-6],\d+$/.test(aString)) // Dezimalbruch mit Komma
+        if (/\d+,\d+$/.test(aString)) // Dezimalbruch mit Komma
         {
             return parseFloat(aString.replace(",", "."));
         }
-        if (/^([1-6]) (\d+)\/(\d+)$/.test(aString) && RegExp.$3 != 0 && RegExp.$3 - RegExp.$2 > 0) // gemeiner Bruch
+        if (/^(\d+) (\d+)\/(\d+)$/.test(aString) && RegExp.$3 != 0 && RegExp.$3 - RegExp.$2 > 0) // gemeiner Bruch
         {
             return parseInt(RegExp.$1) + parseInt(RegExp.$2) / parseInt(RegExp.$3);
         }
         return NaN;
+    },
+
+    /**
+     * @param aString  möglicherweise ein Notenwert (Dezimalbruch oder gemeiner Bruch)
+     * @returns die Note als Zahl zwischen 1 und 6 oder NaN
+     */
+    parseGrade: function(aString) {
+        var grade = X.parseNumber(aString);
+        if (!isNaN(grade) && (grade < 1 || grade > 6)) {
+            grade = NaN;
+        }
+        return grade;
     },
 
     /**
