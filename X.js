@@ -1,4 +1,4 @@
-﻿/* Evento Excel-Helfer  (C) 2009 - 2022 Simon Bünzli  <simon.buenzli@zeniko.ch> */
+﻿/* Evento Excel-Helfer  (C) 2009 - 2023 Simon Bünzli  <simon.buenzli@zeniko.ch> */
 
 /*
 Zum Testen die folgende Zeile in die Adresszeile des Browsers kopieren:
@@ -45,7 +45,7 @@ var X = {
                     "# (für Fach %s):", // %s wird durch die Kursbezeichnung ersetzt
                     "",
                     "# die ERSTE Spalte (oder die ersten zwei Spalten) müssen",
-                    "# die Namen der SchülerInnen enthalten, die LETZTE Spalte",
+                    "# die Namen der Schüler:innen enthalten, die LETZTE Spalte",
                     "# die Zeugnisnoten, dazwischen liegende Spalten werden ignoriert",
                     ""
                 ]
@@ -59,7 +59,7 @@ var X = {
                     "# Hierhin können Daten aus einer Tabelle kopiert/eingefügt werden",
                     "",
                     "# die ERSTE Spalte (oder die ersten zwei Spalten) müssen",
-                    "# die Namen der SchülerInnen enthalten, die ZWEI LETZTEN Spalten",
+                    "# die Namen der Schüler:innen enthalten, die ZWEI LETZTEN Spalten",
                     "# die Absenzen (zuerst die entschuldigten, dann die unentschuldigten)",
                     ""
                 ]
@@ -76,7 +76,7 @@ var X = {
                     "# (für %s):", // %s wird durch die Kursbezeichnung ersetzt
                     "",
                     "# die ERSTE Spalte (oder die ersten zwei Spalten) müssen",
-                    "# die Namen der SchülerInnen enthalten, die LETZTE Spalte",
+                    "# die Namen der Schüler:innen enthalten, die LETZTE Spalte",
                     "# die Punkte/Noten, dazwischen liegende Spalten werden ignoriert",
                     ""
                 ]
@@ -586,10 +586,10 @@ var X = {
 
     /**
      * @param aView  muss 0 für Noten-, 1 für Absenzen-Eingaben, 2 für JSModul, 3 für JSModul/Absenzen oder 4 für Tests sein
-     * @param aIncData  gibt an, ob die Noten/Absenzen zu den SchülerInnennamen
+     * @param aIncData  gibt an, ob die Noten/Absenzen zu den Schüler:innennamen
      *                  hinzugefügt werden sollen (mit Tabulatoren getrennt)
      *                  (bei Tests ist aIncData die Nummer des gewünschten Tests)
-     * @returns die Namen sämtlicher SchülerInnen aus dem Evento-Formular
+     * @returns die Namen sämtlicher Schüler:innen aus dem Evento-Formular
      *          (optional inklusive bereits eingegebener Noten/Absenzen)
      */
     collectNames: function(aView, aIncData) {
@@ -696,7 +696,7 @@ var X = {
     /**
      * @param aView  muss 0 für Noten-, 1 für Absenzen-Eingaben, 2 für JSModul oder 4 für Tests sein
      * @param aTest  muss der Index des gewählten Tests sein (für aView == 4)
-     * @returns das Eingabefeld für den/die erste SchülerIn
+     * @returns das Eingabefeld für den/die erste Schüler:in
      */
     getFirstInput: function(aView, aTest) {
         if (aView == 4 && aTest) {
@@ -762,7 +762,7 @@ var X = {
      * muss oder aber die ersten zwei Spalten Nach- und Vornamen (in beliebiger, aber
      * konsistenter Reihenfolge) enthalten müssen.
      * 
-     * @param aData  Daten, aus welchen die Namen der SchülerInnen und die weiteren Daten
+     * @param aData  Daten, aus welchen die Namen der Schüler:innen und die weiteren Daten
      *               bestimmt werden sollen
      * @param aKnownNames  eine Liste der dem System bekannten Namen
      * @param aValidator  eine optionale Funktion, welche bestimmt, ob es sich bei einem
@@ -868,12 +868,12 @@ var X = {
      * 
      * Die oben ausgelesenen Notenwerte sind 6, 5.5, 5, 4.5, 4 und 3.5.
      * 
-     * @param aData  Daten, aus welchen die Namen der SchülerInnen und ihre Noten
+     * @param aData  Daten, aus welchen die Namen der Schüler:innen und ihre Noten
      *               bestimmt werden sollen
      * @param aKnownNames  eine Liste der dem System bekannten Namen
      * @param aValidGrades  eine Liste der vom System akzeptierten Noten
      *                      (Beurteilungen in Worten dürfen abgekürzt werden)
-     * @returns einen Hash, welcher jedem/r SchülerIn eine Note zuweist
+     * @returns einen Hash, welcher jedem/r Schüler:in eine Note zuweist
      */
     parseGradeData: function(aData, aKnownNames, aValidGrades) {
         function validate(aValue) {
@@ -911,10 +911,10 @@ var X = {
      * 
      * Die oben ausgelesenen Absenzen sind (2, 0), (3, 1), (0, 5), (0, 6), (0, 0), (0, 0).
      * 
-     * @param aData  Daten, aus welchen die Namen der SchülerInnen und ihre Absenzen
+     * @param aData  Daten, aus welchen die Namen der Schüler:innen und ihre Absenzen
      *               bestimmt werden sollen
      * @param aKnownNames  eine Liste der dem System bekannten Namen
-     * @returns einen Hash, welcher jedem/r SchülerIn zwei Absenzen-Zahlen zuweist
+     * @returns einen Hash, welcher jedem/r Schüler:in zwei Absenzen-Zahlen zuweist
      */
     parseAbsenceData: function(aData, aKnownNames) {
         function validate(aValue) {
@@ -943,11 +943,11 @@ var X = {
      * wobei die die auf die Namen folgenden Daten mindestens eine Punkte-Spalte enthalten
      * sollten (das Format ist eine Verallgemeinerung von parseGradeData)
      * 
-     * @param aData  Daten, aus welchen die Namen der SchülerInnen und ihre Noten
+     * @param aData  Daten, aus welchen die Namen der Schüler:innen und ihre Noten
      *               bestimmt werden sollen
      * @param aKnownNames  eine Liste der dem System bekannten Namen
      * @param aValidValues eine Liste der vom System akzeptierten Werten
-     * @returns einen Hash, welcher jedem/r SchülerIn eine Punktezahl zuweist
+     * @returns einen Hash, welcher jedem/r Schüler:in eine Punktezahl zuweist
      */
     parsePointData: function(aData, aKnownNames, aValidGrades) {
         function validate(aValue) {
