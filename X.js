@@ -19,7 +19,7 @@ if (window.X && window.X.uninit) {
 // Namespace für sämtliche zusätzliche Funktionalität
 var X = {
     // Version des Scripts:
-    version: "0.7.0-a1", // Stand 27.12.2022
+    version: "0.7.0-a2", // Stand 18.01.2023
 
     // Wenn X.js eingebettet ist, erscheint das Overlay am Anfang nicht
     // das Callback wird am Ende von onFrameLoad aufgerufen
@@ -85,6 +85,7 @@ var X = {
             errors: {
                 not_found: "Namen nicht gefunden",
                 grade_not_found: "Note nicht gefunden",
+                points_not_found: "Punkte nicht gefunden",
                 name_double: "Name erscheint mehrfach",
                 invalid_value: "Ungültiger Wert: %s", // %s wird durch die ungültige Eingabe ersetzt
                 no_number: "Keine Zahl?"
@@ -142,6 +143,7 @@ var X = {
             errors: {
                 not_found: "Nom non trouvé",
                 grade_not_found: "Note non trouvée",
+                points_not_found: "Points non trouvée",
                 name_double: "Nom apparaissant plusieurs fois",
                 invalid_value: "Valeur non valide : %s", // %s wird durch die ungültige Eingabe ersetzt
                 no_number: "Aucun chiffre ?"
@@ -306,6 +308,7 @@ var X = {
         var errorColors = {
             "not-found": "#ff6",
             "grade-not-found": "#ff6",
+            "points-not-found": "#ff6",
             "name-double": "#fcc",
             "invalid-value": "#fcc",
             "no-number": "#ff6"
@@ -526,6 +529,9 @@ var X = {
                         var input = $("input[type=number], select", cell);
                         if (/^error-(.*)/.test(grades[name])) {
                             error = [RegExp.$1, name];
+                            if (error[0] == "grade-not-found" && input.attr("type") == "number") {
+                                error[0] = "points-not-found";
+                            }
                         } else {
                             if (validGrades && X.contains(validGrades, grades[name]) && input.attr("type") != "number") {
                                 // bei Zehntelsnoten müssen ganze Werte auf ".0" enden
@@ -549,7 +555,7 @@ var X = {
                                 input[0].dispatchEvent(new Event('input'));
                             }
 
-                            if (validGrades && !X.contains(validGrades, grades[name]) && input.attr("type") != "number" ) {
+                            if (validGrades && !X.contains(validGrades, grades[name])) {
                                 error = ["invalid-value", grades[name]];
                             } else if (!validGrades && typeof(grades[name]) != "number") {
                                 error = ["no-number", grades[name]];
@@ -662,13 +668,13 @@ var X = {
         if (aView == 4 && aTest) {
             var rows = $("erz-test-edit-grades table tbody tr");
             var cell = $("td.name, td:not(.sticky)", rows.get(0)).get(aTest);
-            var input = $("input[type=number], select", cell);         
+            var input = $("input[type=number], select", cell);
             if (input.attr("type") == "number") {
                 var min = parseFloat(input.attr("min")) || 0;
                 var max = parseFloat(input.attr("max")) || 0;
                 var step = parseFloat(input.attr("step")) || 0.5;
                 for (var val = min; val <= max; val += step) {
-                    values.push(parseFloat(val).toFixed(2));
+                    values.push(val.toFixed(2).replace(/\.00$|0$/, ""));
                 }
             }
             else {
