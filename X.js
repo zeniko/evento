@@ -19,7 +19,7 @@ if (window.X && window.X.uninit) {
 // Namespace für sämtliche zusätzliche Funktionalität
 var X = {
     // Version des Scripts:
-    version: "0.7.0-a3", // Stand 18.01.2023
+    version: "2023.01.20",
 
     // Wenn X.js eingebettet ist, erscheint das Overlay am Anfang nicht
     // das Callback wird am Ende von onFrameLoad aufgerufen
@@ -88,7 +88,7 @@ var X = {
                 points_not_found: "Punkte nicht gefunden",
                 name_double: "Name erscheint mehrfach",
                 invalid_value: "Ungültiger Wert: %s", // %s wird durch die ungültige Eingabe ersetzt
-                no_number: "Keine Zahl?"
+                no_number: "Keine Zahl (\"%s\")?"
             }
         },
         fr: {
@@ -146,7 +146,7 @@ var X = {
                 points_not_found: "Points non trouvée",
                 name_double: "Nom apparaissant plusieurs fois",
                 invalid_value: "Valeur non valide : %s", // %s wird durch die ungültige Eingabe ersetzt
-                no_number: "Aucun chiffre ?"
+                no_number: "Aucun chiffre (\"%s\") ?"
             }
         }
     },
@@ -509,11 +509,13 @@ var X = {
                 break;
 
             case 4:
-                var validGrades = X.collectValidGrades(aView, aTest);
                 if (X.getFirstInput(aView, aTest).type == "number") {
-                    var grades = X.parsePointData(lines, X.collectNames(aView), validGrades);
+                    // Punktewerte werden alle eingetragen, welche nach Zahlen aussehen (Fehlermeldung erfolgt via Angular)
+                    var validGrades = null;
+                    var grades = X.parsePointData(lines, X.collectNames(aView));
                 }
                 else {
+                    var validGrades = X.collectValidGrades(aView, aTest);
                     var grades = X.parseGradeData(lines, X.collectNames(aView), validGrades);
                 }
 
@@ -533,9 +535,9 @@ var X = {
                     if (name in grades) {
                         var input = $("input[type=number], select", cell);
                         if (/^error-(.*)/.test(grades[name])) {
-                            error = [RegExp.$1, grades[name]];
+                            error = [RegExp.$1, name];
                         } else {
-                            if (validGrades && X.contains(validGrades, grades[name]) && input.attr("type") != "number") {
+                            if (validGrades && X.contains(validGrades, grades[name])) {
                                 // bei Zehntelsnoten müssen ganze Werte auf ".0" enden
                                 grades[name] = $.grep(validGrades, function(aVal) {
                                     return aVal == grades[name];
@@ -816,6 +818,11 @@ var X = {
             });
         }
 
+        // Eingabe muss immer nach den Namen erfolgen
+        if (Math.max(stats.split, stats.split_rev) > Math.max(stats.normal, stats.rotate) && stats.gradeRow == 1) {
+            stats.gradeRow = 2;
+        }
+
         // Anzahl Zellen, die jede Zeile mindestens haben muss
         var padding = [];
         for (i = 0; i < stats.gradeRow; i++) {
@@ -953,7 +960,7 @@ var X = {
         function validate(aValue) {
             var value = X.parseNumber(aValue);
             // Werte mit drei oder mehr Nachkommastellen werden abgeleht
-            return !isNaN(value) && X.contains(aValidGrades, value.toFixed(3).replace(/\.?0+$/, ""));
+            return !isNaN(value) && aValidGrades && X.contains(aValidGrades, value.toFixed(3).replace(/\.?0+$/, ""));
         }
         var lines = X.parseDataHelper(aData, aKnownNames, validate);
 
@@ -962,7 +969,7 @@ var X = {
             var name = lines[i][0];
             var point = lines[i][lines[i].length - 1];
 
-            points[name] = name in points ? "error-name-double" : validate(point) ? X.parseNumber(point) : point ? "error-invalid-value" : "error-points-not-found";
+            points[name] = name in points ? "error-name-double" : X.parseNumber(point) || point || "error-points-not-found";
         }
 
         return points;
