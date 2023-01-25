@@ -19,7 +19,7 @@ if (window.X && window.X.uninit) {
 // Namespace für sämtliche zusätzliche Funktionalität
 var X = {
     // Version des Scripts:
-    version: "2023.01.20",
+    version: "2023.01.25",
 
     // Wenn X.js eingebettet ist, erscheint das Overlay am Anfang nicht
     // das Callback wird am Ende von onFrameLoad aufgerufen
@@ -960,7 +960,7 @@ var X = {
         function validate(aValue) {
             var value = X.parseNumber(aValue);
             // Werte mit drei oder mehr Nachkommastellen werden abgeleht
-            return !isNaN(value) && aValidGrades && X.contains(aValidGrades, value.toFixed(3).replace(/\.?0+$/, ""));
+            return !isNaN(value) && (!aValidGrades || X.contains(aValidGrades, value.toFixed(3).replace(/\.?0+$/, "")));
         }
         var lines = X.parseDataHelper(aData, aKnownNames, validate);
 
