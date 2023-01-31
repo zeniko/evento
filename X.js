@@ -188,7 +188,7 @@ var X = {
      *                    oder nur, wenn das Evento-Formular noch keine Daten enthält
      */
     onFrameLoad: function(aShowPanel) {
-        if ($("td:contains('Anmeldungen'), th:contains('Anmeldungen'), button:contains('Alle Tests')").length == 0) {
+        if ($("td:contains('Anmeldungen'), th:contains('Anmeldungen'),div:contains('Anmeldungen'), button:contains('Alle Tests')").length == 0) {
             X.lang = "fr";
         }
         X.strings[X.lang].views[2] = X.strings[X.lang].views[0];
