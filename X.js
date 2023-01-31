@@ -1,4 +1,4 @@
-﻿/* Evento Excel-Helfer  (C) 2009 - 2022 Simon Bünzli  <simon.buenzli@zeniko.ch> */
+﻿/* Evento Excel-Helfer  (C) 2009 - 2023 Simon Bünzli  <simon.buenzli@zeniko.ch> */
 
 /*
 Zum Testen die folgende Zeile in die Adresszeile des Browsers kopieren:
@@ -19,7 +19,7 @@ if (window.X && window.X.uninit) {
 // Namespace für sämtliche zusätzliche Funktionalität
 var X = {
     // Version des Scripts:
-    version: "0.7.0-a1", // Stand 27.12.2022
+    version: "2023.01.25",
 
     // Wenn X.js eingebettet ist, erscheint das Overlay am Anfang nicht
     // das Callback wird am Ende von onFrameLoad aufgerufen
@@ -45,7 +45,7 @@ var X = {
                     "# (für Fach %s):", // %s wird durch die Kursbezeichnung ersetzt
                     "",
                     "# die ERSTE Spalte (oder die ersten zwei Spalten) müssen",
-                    "# die Namen der SchülerInnen enthalten, die LETZTE Spalte",
+                    "# die Namen der Schüler:innen enthalten, die LETZTE Spalte",
                     "# die Zeugnisnoten, dazwischen liegende Spalten werden ignoriert",
                     ""
                 ]
@@ -59,7 +59,7 @@ var X = {
                     "# Hierhin können Daten aus einer Tabelle kopiert/eingefügt werden",
                     "",
                     "# die ERSTE Spalte (oder die ersten zwei Spalten) müssen",
-                    "# die Namen der SchülerInnen enthalten, die ZWEI LETZTEN Spalten",
+                    "# die Namen der Schüler:innen enthalten, die ZWEI LETZTEN Spalten",
                     "# die Absenzen (zuerst die entschuldigten, dann die unentschuldigten)",
                     ""
                 ]
@@ -76,7 +76,7 @@ var X = {
                     "# (für %s):", // %s wird durch die Kursbezeichnung ersetzt
                     "",
                     "# die ERSTE Spalte (oder die ersten zwei Spalten) müssen",
-                    "# die Namen der SchülerInnen enthalten, die LETZTE Spalte",
+                    "# die Namen der Schüler:innen enthalten, die LETZTE Spalte",
                     "# die Punkte/Noten, dazwischen liegende Spalten werden ignoriert",
                     ""
                 ]
@@ -85,9 +85,10 @@ var X = {
             errors: {
                 not_found: "Namen nicht gefunden",
                 grade_not_found: "Note nicht gefunden",
+                points_not_found: "Punkte nicht gefunden",
                 name_double: "Name erscheint mehrfach",
                 invalid_value: "Ungültiger Wert: %s", // %s wird durch die ungültige Eingabe ersetzt
-                no_number: "Keine Zahl?"
+                no_number: "Keine Zahl (\"%s\")?"
             }
         },
         fr: {
@@ -142,9 +143,10 @@ var X = {
             errors: {
                 not_found: "Nom non trouvé",
                 grade_not_found: "Note non trouvée",
+                points_not_found: "Points non trouvée",
                 name_double: "Nom apparaissant plusieurs fois",
                 invalid_value: "Valeur non valide : %s", // %s wird durch die ungültige Eingabe ersetzt
-                no_number: "Aucun chiffre ?"
+                no_number: "Aucun chiffre (\"%s\") ?"
             }
         }
     },
@@ -287,7 +289,7 @@ var X = {
         }
 
         if (aView >= 2) {
-            $("#tsv-data + div > input[type=button]:first-child").attr("onClick", 'top.X.acceptOverlay(' + aView + ', ' + index + ');').html(X.strings[X.lang].views[aView].accept_button);
+            $("#tsv-data + div > :first-child").attr("onClick", 'top.X.acceptOverlay(' + aView + ', ' + index + ');').html(X.strings[X.lang].views[aView].accept_button);
         }
 
         $("#tsv-overlay").show(1000, function() {
@@ -306,6 +308,7 @@ var X = {
         var errorColors = {
             "not-found": "#ff6",
             "grade-not-found": "#ff6",
+            "points-not-found": "#ff6",
             "name-double": "#fcc",
             "invalid-value": "#fcc",
             "no-number": "#ff6"
@@ -506,8 +509,15 @@ var X = {
                 break;
 
             case 4:
-                var validGrades = X.collectValidGrades(aView, aTest);
-                var grades = X.parseGradeData(lines, X.collectNames(aView), validGrades);
+                if (X.getFirstInput(aView, aTest).type == "number") {
+                    // Punktewerte werden alle eingetragen, welche nach Zahlen aussehen (Fehlermeldung erfolgt via Angular)
+                    var validGrades = null;
+                    var grades = X.parsePointData(lines, X.collectNames(aView));
+                }
+                else {
+                    var validGrades = X.collectValidGrades(aView, aTest);
+                    var grades = X.parseGradeData(lines, X.collectNames(aView), validGrades);
+                }
 
                 // Fehlermeldungen zurücksetzen
                 $("div.X-error").css("background-color", "").text("");
@@ -544,9 +554,8 @@ var X = {
                             // die Eingabe Server-schonend nur bei Änderung vornehmen
                             if (input.val() != targetValue) {
                                 input.val(targetValue);
-                                // change- und input-Ereignis auslösen
-                                input[0].dispatchEvent(new Event('change'));
-                                input[0].dispatchEvent(new Event('input'));
+                                // TODO: Angular change-Ereignis auslösen
+                                input.trigger("change");
                             }
 
                             if (validGrades && !X.contains(validGrades, grades[name]) && input.attr("type") != "number" ) {
@@ -578,10 +587,10 @@ var X = {
 
     /**
      * @param aView  muss 0 für Noten-, 1 für Absenzen-Eingaben, 2 für JSModul, 3 für JSModul/Absenzen oder 4 für Tests sein
-     * @param aIncData  gibt an, ob die Noten/Absenzen zu den SchülerInnennamen
+     * @param aIncData  gibt an, ob die Noten/Absenzen zu den Schüler:innennamen
      *                  hinzugefügt werden sollen (mit Tabulatoren getrennt)
      *                  (bei Tests ist aIncData die Nummer des gewünschten Tests)
-     * @returns die Namen sämtlicher SchülerInnen aus dem Evento-Formular
+     * @returns die Namen sämtlicher Schüler:innen aus dem Evento-Formular
      *          (optional inklusive bereits eingegebener Noten/Absenzen)
      */
     collectNames: function(aView, aIncData) {
@@ -662,13 +671,17 @@ var X = {
         if (aView == 4 && aTest) {
             var rows = $("erz-test-edit-grades table tbody tr");
             var cell = $("td.name, td:not(.sticky)", rows.get(0)).get(aTest);
-            var input = $("input[type=number], select", cell);         
+            var input = $("input[type=number], select", cell);
             if (input.attr("type") == "number") {
                 var min = parseFloat(input.attr("min")) || 0;
                 var max = parseFloat(input.attr("max")) || 0;
                 var step = parseFloat(input.attr("step")) || 0.5;
                 for (var val = min; val <= max; val += step) {
-                    values.push(parseFloat(val).toFixed(2));
+                    var valString = val.toString()
+                        .replace(/0{4,}[1-9]\d*$/, "")
+                        .replace(/([0-8])9{4,}\d*$/, function(_0, _1) { return parseInt(_1) + 1; })
+                        .replace(/^(\d+)\.9{5,}\d*$/, function(_0, _1) { return parseInt(_1) + 1; });
+                    values.push(valString);
                 }
             }
             else {
@@ -689,19 +702,8 @@ var X = {
                 options: $("td.gradeInput ul.dialogContextMenu").first().find("li")
             };
         }
-        if (!firstSelect) {
-            return null;
-        }
 
-        $.each(firstSelect.options, function() {
-            var value = $.trim($(this).text());
-            // JSModule verwendet "<>", wenn nichts ausgewählt ist
-            if (value && (aView != 2 || value != "<>")) {
-                values.push(value);
-            }
-        });
-
-        return values;
+        return firstSelect;
     },
 
     /**
@@ -750,7 +752,7 @@ var X = {
      * muss oder aber die ersten zwei Spalten Nach- und Vornamen (in beliebiger, aber
      * konsistenter Reihenfolge) enthalten müssen.
      * 
-     * @param aData  Daten, aus welchen die Namen der SchülerInnen und die weiteren Daten
+     * @param aData  Daten, aus welchen die Namen der Schüler:innen und die weiteren Daten
      *               bestimmt werden sollen
      * @param aKnownNames  eine Liste der dem System bekannten Namen
      * @param aValidator  eine optionale Funktion, welche bestimmt, ob es sich bei einem
@@ -802,6 +804,11 @@ var X = {
                     stats.gradeRow = aRow;
                 }
             });
+        }
+
+        // Eingabe muss immer nach den Namen erfolgen
+        if (Math.max(stats.split, stats.split_rev) > Math.max(stats.normal, stats.rotate) && stats.gradeRow == 1) {
+            stats.gradeRow = 2;
         }
 
         // Anzahl Zellen, die jede Zeile mindestens haben muss
@@ -856,16 +863,16 @@ var X = {
      * 
      * Die oben ausgelesenen Notenwerte sind 6, 5.5, 5, 4.5, 4 und 3.5.
      * 
-     * @param aData  Daten, aus welchen die Namen der SchülerInnen und ihre Noten
+     * @param aData  Daten, aus welchen die Namen der Schüler:innen und ihre Noten
      *               bestimmt werden sollen
      * @param aKnownNames  eine Liste der dem System bekannten Namen
      * @param aValidGrades  eine Liste der vom System akzeptierten Noten
      *                      (Beurteilungen in Worten dürfen abgekürzt werden)
-     * @returns einen Hash, welcher jedem/r SchülerIn eine Note zuweist
+     * @returns einen Hash, welcher jedem/r Schüler:in eine Note zuweist
      */
     parseGradeData: function(aData, aKnownNames, aValidGrades) {
         function validate(aValue) {
-            var value = X.parseNumber(aValue);
+            var value = X.parseGrade(aValue);
             return !isNaN(value) || aValidGrades && /^[^\W\d]+\.?$/.test(aValue) && X.findByPrefix(aValue, aValidGrades);
         }
         var lines = X.parseDataHelper(aData, aKnownNames, validate);
@@ -875,7 +882,7 @@ var X = {
             var name = lines[i][0];
             var grade = lines[i][lines[i].length - 1];
 
-            grades[name] = name in grades ? "error-name-double" : X.parseNumber(grade || "") || X.findByPrefix(grade, aValidGrades) || grade || "error-grade-not-found";
+            grades[name] = name in grades ? "error-name-double" : X.parseGrade(grade || "") || X.findByPrefix(grade, aValidGrades) || grade || "error-grade-not-found";
         }
 
         return grades;
@@ -899,10 +906,10 @@ var X = {
      * 
      * Die oben ausgelesenen Absenzen sind (2, 0), (3, 1), (0, 5), (0, 6), (0, 0), (0, 0).
      * 
-     * @param aData  Daten, aus welchen die Namen der SchülerInnen und ihre Absenzen
+     * @param aData  Daten, aus welchen die Namen der Schüler:innen und ihre Absenzen
      *               bestimmt werden sollen
      * @param aKnownNames  eine Liste der dem System bekannten Namen
-     * @returns einen Hash, welcher jedem/r SchülerIn zwei Absenzen-Zahlen zuweist
+     * @returns einen Hash, welcher jedem/r Schüler:in zwei Absenzen-Zahlen zuweist
      */
     parseAbsenceData: function(aData, aKnownNames) {
         function validate(aValue) {
@@ -927,23 +934,65 @@ var X = {
     },
 
     /**
+     * liest von Excel kopierte Daten nach dem allgemeinen Schema von parseDataHelper ein,
+     * wobei die die auf die Namen folgenden Daten mindestens eine Punkte-Spalte enthalten
+     * sollten (das Format ist eine Verallgemeinerung von parseGradeData)
+     * 
+     * @param aData  Daten, aus welchen die Namen der Schüler:innen und ihre Noten
+     *               bestimmt werden sollen
+     * @param aKnownNames  eine Liste der dem System bekannten Namen
+     * @param aValidValues eine Liste der vom System akzeptierten Werten
+     * @returns einen Hash, welcher jedem/r Schüler:in eine Punktezahl zuweist
+     */
+    parsePointData: function(aData, aKnownNames, aValidGrades) {
+        function validate(aValue) {
+            var value = X.parseNumber(aValue);
+            // Werte mit drei oder mehr Nachkommastellen werden abgeleht
+            return !isNaN(value) && (!aValidGrades || X.contains(aValidGrades, value.toFixed(3).replace(/\.?0+$/, "")));
+        }
+        var lines = X.parseDataHelper(aData, aKnownNames, validate);
+
+        var points = {};
+        for (i = 0; i < lines.length; i++) {
+            var name = lines[i][0];
+            var point = lines[i][lines[i].length - 1];
+
+            points[name] = name in points ? "error-name-double" : X.parseNumber(point) || point || "error-points-not-found";
+        }
+
+        return points;
+    },
+
+    /**
      * @param aString  möglicherweise eine Zahl (Dezimalbruch oder gemeiner Bruch)
      * @returns die Zahl als Zahl oder NaN
      */
     parseNumber: function(aString) {
-        if (/^[1-6](?:\.\d+)?$/.test(aString)) // Dezimalbruch
+        if (/^\d+(?:\.\d+)?$/.test(aString)) // Dezimalbruch
         {
             return parseFloat(aString);
         }
-        if (/[1-6],\d+$/.test(aString)) // Dezimalbruch mit Komma
+        if (/\d+,\d+$/.test(aString)) // Dezimalbruch mit Komma
         {
             return parseFloat(aString.replace(",", "."));
         }
-        if (/^([1-6]) (\d+)\/(\d+)$/.test(aString) && RegExp.$3 != 0 && RegExp.$3 - RegExp.$2 > 0) // gemeiner Bruch
+        if (/^(\d+) (\d+)\/(\d+)$/.test(aString) && RegExp.$3 != 0 && RegExp.$3 - RegExp.$2 > 0) // gemeiner Bruch
         {
             return parseInt(RegExp.$1) + parseInt(RegExp.$2) / parseInt(RegExp.$3);
         }
         return NaN;
+    },
+
+    /**
+     * @param aString  möglicherweise ein Notenwert (Dezimalbruch oder gemeiner Bruch)
+     * @returns die Note als Zahl zwischen 1 und 6 oder NaN
+     */
+    parseGrade: function(aString) {
+        var grade = X.parseNumber(aString);
+        if (!isNaN(grade) && (grade < 1 || grade > 6)) {
+            grade = NaN;
+        }
+        return grade;
     },
 
     /**
