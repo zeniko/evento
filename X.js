@@ -19,7 +19,7 @@ if (window.X && window.X.uninit) {
 // Namespace für sämtliche zusätzliche Funktionalität
 var X = {
     // Version des Scripts:
-    version: "2023.01.25",
+    version: "2023.05.01",
 
     // Wenn X.js eingebettet ist, erscheint das Overlay am Anfang nicht
     // das Callback wird am Ende von onFrameLoad aufgerufen
@@ -1179,6 +1179,18 @@ var X = {
      * X.test()
      */
     test: function() {
+        var knownNames = [
+            "Name Vorname",
+            "Family Name Given Name",
+            "Nom Prénom",
+            "Cognome Nome",
+            "Apellido Nombre",
+            "Nàlizätión Iñtërnâtiô",
+            "Sportler Profi",
+            "Tester Beta"
+        ];
+        var validGrades = "1 2.2 3.5 5.5 6 dispensiert besucht".split(" ");
+
         var tests = [
             [ // Muster: Nachname<Tab>Vorname<Tab>Note
                 "Name	Vorname	1",
@@ -1224,6 +1236,14 @@ var X = {
                 "Beta Tester	xbesucht" // Tippfehler im Prädikat
             ]
         ];
+        var output = {
+            "Name Vorname": 1,
+            "Family Name Given Name": 2.2,
+            "Nom Prénom": 3.5,
+            "Nàlizätión Iñtërnâtiô": 6,
+            "Sportler Profi": "dispensiert"
+        };
+
         var absenceTests = [
             [ // Muster: Nachname<Tab>Vorname<Tab>beliebig<Tab>Entschuldigte<Tab>Unentschuldigte
                 "Name	Vorname",
@@ -1236,31 +1256,44 @@ var X = {
                 "Apellido Nombre		4	4" // Leerschlag statt Tabulator
             ]
         ];
-
-        var knownNames = [
-            "Name Vorname",
-            "Family Name Given Name",
-            "Nom Prénom",
-            "Cognome Nome",
-            "Apellido Nombre",
-            "Nàlizätión Iñtërnâtiô",
-            "Sportler Profi",
-            "Tester Beta"
-        ];
-        var validGrades = "1 2.2 3.5 5.5 6 dispensiert besucht".split(" ");
-        var output = {
-            "Name Vorname": 1,
-            "Family Name Given Name": 2.2,
-            "Nom Prénom": 3.5,
-            "Nàlizätión Iñtërnâtiô": 6,
-            "Sportler Profi": "dispensiert"
-        };
         var absenceOutput = {
             "Name Vorname": 0,
             "Family Name Given Name": 1,
             "Nom Prénom": 2,
             "Nàlizätión Iñtërnâtiô": 3,
             "Cognome Nome": "?"
+        };
+
+        var pointTests = [
+            [ // Muster: Nachname<Leerschlag>Vorname<Tab>beliebig<Tab>Punkte
+                "Name Vorname	1.2	3.4",
+                "Nom Prénom		7",
+                "Family Name Given Name	5.5	13.5",
+                "Nàlizätión Iñtërnâtiô		6",
+                "Apellido Nombre	2.5", // Punktezahl in falscher Spalte
+                "Cognome	Nome	2.0	disp", // Tabulator statt Leerschlag
+                "Sportler Profi		0",
+                "Tester Beta		disp" // ungültige Punktezahl
+            ],
+            [ // Muster: Nachname<Tab>Vorname<Tab>Punkte (mit Dezimalkomma)
+                "Name	Vorname	3,4",
+                "Nom	Prénom	7,0",
+                "Family Name	Given Name	13 1/2",
+                "Nàlizätión	Iñtërnâtiô	6",
+                "Apellido	Nombre	", // Punktezahl fehlt
+                "Cognome Nome	2", // Leerschlag statt Tabulator
+                "Sportler	Profi	0",
+                "Tester	Beta	disp" // ungültige Punktezahl
+            ]
+        ];
+        var pointOutput = {
+            "Name Vorname": 3.4,
+            "Family Name Given Name": 13.5,
+            "Nom Prénom": 7,
+            "Nàlizätión Iñtërnâtiô": 6,
+            "Apellido Nombre": "error-points-not-found",
+            "Sportler Profi": "0",
+            "Tester Beta": "disp"
         };
 
         var errors = [];
@@ -1282,7 +1315,7 @@ var X = {
                 count++;
             }
             for (name in result) {
-                if (X.contains(name, knownNames) && X.contains(result[name].toString(), validGrades)) {
+                if (X.contains(knownNames, name) && X.contains(validGrades, result[name].toString())) {
                     count--;
                 }
             }
@@ -1300,11 +1333,28 @@ var X = {
                 count++;
             }
             for (name in result) {
-                if (X.contains(name, knownNames) && typeof(result[name]) != "string" && result[name][0] === result[name][1]) {
+                if (X.contains(knownNames, name) && typeof(result[name]) != "string" && result[name][0] === result[name][1]) {
                     count--;
                 }
             }
             assert(count >= 0, "Absenzen-Test " + (i + 1) + ": Differenz von " + -count + " zur Anzahl erwarteter Ergebnisse");
+        });
+        $.each(pointTests, function(i) {
+            var result = X.parsePointData(this, knownNames);
+            var count = 0;
+            for (var name in pointOutput) {
+                assert(name in result, "Punkte-Test " + (i + 1) + ": '" + name + "' nicht gefunden");
+                if (name in result) {
+                    assert(result[name] === pointOutput[name], "Punkte-Test " + (i + 1) + " für '" + name + "': " + result[name] + " != " + pointOutput[name]);
+                }
+                count++;
+            }
+            for (name in result) {
+                if (X.contains(knownNames, name)) {
+                    count--;
+                }
+            }
+            assert(count >= 0, "Punkte-Test " + (i + 1) + ": Differenz von " + -count + " zur Anzahl erwarteter Ergebnisse");
         });
 
         return errors.join("\n") || "Tests bestanden.";
