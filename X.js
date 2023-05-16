@@ -151,6 +151,24 @@ var X = {
         }
     },
 
+	
+     /**
+     * Prio 1 document lang
+     * Prio 2  localStorage > CLX.LoginToken > culture_info (sprache)
+     */
+    language: function () {
+        var lang = document.documentElement.lang 
+        
+        if(lang.length === 0) {
+            var token = localStorage.getItem('CLX.LoginToken');
+            var base64Url = token.split('.')[1];
+            var base64 = base64Url.replace('-', '+').replace('_', '/');
+            lang = JSON.parse(window.atob(base64)).culture_info;
+        }
+
+        return lang.indexOf('de') >= 0 ? 'de' : 'fr';
+    },
+	
     /**
      * initialisiert den Helfer
      */
@@ -190,9 +208,8 @@ var X = {
      *                    oder nur, wenn das Evento-Formular noch keine Daten enthält
      */
     onFrameLoad: function(aShowPanel) {
-        if ($("td:contains('Anmeldungen'), th:contains('Anmeldungen'), button:contains('Alle Tests')").length == 0) {
-            X.lang = "fr";
-        }
+        X.lang = X.language();
+	    
         X.strings[X.lang].views[2] = X.strings[X.lang].views[0];
         X.strings[X.lang].views[3] = X.strings[X.lang].views[1];
 
